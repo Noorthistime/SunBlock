@@ -10,7 +10,7 @@ export default function DottedProgress({ size = 5 }: { size?: number }) {
       {dots.map((dot) => (
         <motion.div
           key={dot}
-          className="h-2 w-2 rounded-full bg-accent"
+          className="h-2 w-2 rounded-full bg-ink"
           animate={{
             opacity: [0.15, 1, 0.15],
             scale: [0.9, 1.15, 0.9],

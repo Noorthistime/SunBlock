@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Inter, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,16 +8,17 @@ const inter = Inter({
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
-  variable: "--font-serif",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-condensed",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "SunBlock — Premium Weather Dashboard",
-  description: "A gorgeous, accent-swappable weather dashboard with high-fidelity animations, floating glass capsule panels, and a Leaflet weather map.",
-  keywords: ["SunBlock", "Weather Dashboard", "Next.js", "Tailwind CSS v4", "Leaflet", "OpenStreetMap", "Nothing Design", "Glassmorphism"],
+  title: "SunBlock — Monochrome Weather Dashboard",
+  description: "A premium monochromatic weather dashboard supporting Frosted Paper (clinical blueprint) and Gallery Grid (Brutalist Mono X7) design modes.",
+  keywords: ["SunBlock", "Weather Dashboard", "Next.js", "Tailwind CSS v4", "Leaflet", "OpenStreetMap", "Minimalist", "Monochromatic"],
   authors: [{ name: "SunBlock Team" }],
   manifest: "/manifest.json",
   icons: {
@@ -25,8 +26,8 @@ export const metadata: Metadata = {
     apple: "/apple-icon.png",
   },
   openGraph: {
-    title: "SunBlock — Premium Weather Dashboard",
-    description: "Multi-day forecasts and weather layers overlaying an interactive map interface.",
+    title: "SunBlock — Monochrome Weather Dashboard",
+    description: "Achromatic multi-day forecasts and weather layers overlaying an interactive map interface.",
     url: "https://sunblock.vercel.app",
     siteName: "SunBlock",
     images: [
@@ -42,14 +43,14 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SunBlock — Premium Weather & Map Dashboard",
-    description: "Beautiful multi-day forecasts and Leaflet interactive map overlays.",
+    title: "SunBlock — Monochrome Weather & Map Dashboard",
+    description: "Beautiful monochromatic multi-day forecasts and Leaflet interactive map overlays.",
     images: ["https://images.unsplash.com/photo-1592210454359-9043f067919b?w=1200&auto=format&fit=crop&q=80"],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -61,12 +62,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`} data-theme="dark" data-accent="red">
-      <body className="dot-grid antialiased">
-        <div className="aura-container">
-          <div className="aura-bg" />
-          <div className="aura-bg-2" />
-        </div>
+    <html lang="en" className={`${inter.variable} ${barlowCondensed.variable}`} data-style="frosted">
+      <body className="dot-grid-bg antialiased">
         {children}
       </body>
     </html>

@@ -2,267 +2,255 @@
 @import "leaflet/dist/leaflet.css";
 
 @theme {
-  --font-serif: "Playfair Display", Georgia, serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+  --font-condensed: var(--font-condensed), system-ui, sans-serif;
   
-  --color-accent: var(--accent-color);
-  --color-accent-hover: var(--accent-color-hover);
-  --color-accent-glow: var(--accent-color-glow);
+  --color-canvas: var(--color-canvas);
+  --color-paper: var(--color-paper);
+  --color-surface-alt: var(--color-surface-alt);
+  --color-ink: var(--color-ink);
+  --color-ink-soft: var(--color-ink-soft);
+  --color-mid-gray: var(--color-mid-gray);
+  --color-hairline: var(--color-hairline);
+  --color-ember: var(--color-ember);
   
-  --bg-primary: var(--bg-primary);
-  --bg-secondary: var(--bg-secondary);
-  --text-primary: var(--text-primary);
-  --text-secondary: var(--text-secondary);
-  --border-glass: var(--glass-border);
-  --bg-glass: var(--glass-bg);
-  --shadow-glass: var(--glass-shadow);
+  --radius-card: var(--radius-card);
+  --radius-element: var(--radius-element);
+  --border-thickness: var(--border-thickness);
+  --shadow-main: var(--shadow-main);
 }
 
 :root {
-  /* Default Accent: Nothing Red */
-  --accent-color: #ff2d55;
-  --accent-color-rgb: 255, 45, 85;
-  --accent-color-hover: #e02447;
-  --accent-color-glow: rgba(255, 45, 85, 0.25);
+  /* Default Style Mode: Frosted */
+  --font-sans: var(--font-sans), 'Inter', system-ui, sans-serif;
+  --font-condensed: var(--font-condensed), 'Inter', system-ui, sans-serif;
+  --color-ember: #e7000b; /* Ember supporting accent for error states */
+}
 
-  /* Radius & Shadows */
-  --radius-glass: 24px;
-  --radius-inner: 16px;
+/* 1. Frosted Paper Mode (clinical blueprint on frosted paper) */
+[data-style="frosted"] {
+  --color-canvas: #f5f5f5;
+  --color-paper: #ffffff;
+  --color-surface-alt: #fafafa;
+  --color-ink: #0a0a0a;
+  --color-ink-soft: #171717;
+  --color-mid-gray: #737373;
+  --color-hairline: #e5e5e5;
   
-  /* Motion */
-  --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  --transition-fast: all 0.15s cubic-bezier(0.25, 0.8, 0.25, 1);
-
-  /* Light Theme Variables */
-  --bg-primary: #f8f9fa;
-  --bg-secondary: #ffffff;
-  --text-primary: #121212;
-  --text-secondary: #666666;
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-  --glow-strength: rgba(0, 0, 0, 0.02);
+  --radius-card: 24px;
+  --radius-element: 18px;
+  --border-thickness: 1px;
+  --shadow-main: 0 0 0 1px rgba(23, 23, 23, 0.05), 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* OLED-inspired Dark Theme Variables */
-[data-theme="dark"] {
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --text-primary: #ffffff;
-  --text-secondary: #a0a0a0;
-  --glass-bg: rgba(10, 10, 10, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.8), 0 1px 3px 0 rgba(255, 255, 255, 0.03);
-  --glow-strength: rgba(255, 255, 255, 0.02);
+/* 2. Gallery Grid Mode (Brutalist Mono X7 contact sheet) */
+[data-style="gallery"] {
+  --color-canvas: #ffffff;
+  --color-paper: #ffffff;
+  --color-surface-alt: #ffffff;
+  --color-ink: #292929;
+  --color-ink-soft: #000000;
+  --color-mid-gray: #292929;
+  --color-hairline: #292929;
+  
+  --radius-card: 0px;
+  --radius-element: 0px;
+  --border-thickness: 2px;
+  --shadow-main: none;
 }
 
-/* Accent Color Variations */
-[data-accent="red"] {
-  --accent-color: #ff2d55;
-  --accent-color-rgb: 255, 45, 85;
-  --accent-color-hover: #e02447;
-  --accent-color-glow: rgba(255, 45, 85, 0.3);
-}
-
-[data-accent="orange"] {
-  --accent-color: #f2994a;
-  --accent-color-rgb: 242, 153, 74;
-  --accent-color-hover: #e08535;
-  --accent-color-glow: rgba(242, 153, 74, 0.3);
-}
-
-[data-accent="green"] {
-  --accent-color: #27ae60;
-  --accent-color-rgb: 39, 174, 96;
-  --accent-color-hover: #219653;
-  --accent-color-glow: rgba(39, 174, 96, 0.3);
-}
-
-[data-accent="blue"] {
-  --accent-color: #2f80ed;
-  --accent-color-rgb: 47, 128, 237;
-  --accent-color-hover: #1b6ed1;
-  --accent-color-glow: rgba(47, 128, 237, 0.3);
-}
-
-/* Base resets & styles */
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   overflow-x: hidden;
-  transition: var(--transition-smooth);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   min-height: 100vh;
 }
 
-/* Premium Dynamic Aura Background */
-.aura-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.aura-bg {
-  position: absolute;
-  width: 150vmax;
-  height: 150vmax;
-  top: -25vmax;
-  left: -25vmax;
-  background: radial-gradient(
-    circle at center,
-    rgba(var(--accent-color-rgb), 0.08) 0%,
-    rgba(var(--accent-color-rgb), 0.02) 40%,
-    transparent 70%
-  );
-  filter: blur(80px);
-  animation: rotateAura 30s linear infinite;
-  transform-origin: 50% 50%;
-  transition: var(--transition-smooth);
-}
-
-.aura-bg-2 {
-  position: absolute;
-  width: 120vmax;
-  height: 120vmax;
-  bottom: -30vmax;
-  right: -30vmax;
-  background: radial-gradient(
-    circle at center,
-    rgba(var(--accent-color-rgb), 0.05) 0%,
-    transparent 60%
-  );
-  filter: blur(100px);
-  animation: rotateAuraRev 25s linear infinite;
-  transform-origin: 50% 50%;
-  transition: var(--transition-smooth);
-}
-
-@keyframes rotateAura {
-  0% {
-    transform: rotate(0deg) translate(-5%, -5%);
-  }
-  50% {
-    transform: rotate(180deg) translate(5%, 5%);
-  }
-  100% {
-    transform: rotate(360deg) translate(-5%, -5%);
-  }
-}
-
-@keyframes rotateAuraRev {
-  0% {
-    transform: rotate(360deg) translate(5%, 5%);
-  }
-  50% {
-    transform: rotate(180deg) translate(-5%, -5%);
-  }
-  100% {
-    transform: rotate(0deg) translate(5%, 5%);
-  }
-}
-
-/* Glassmorphism custom components */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px) saturate(120%);
-  -webkit-backdrop-filter: blur(24px) saturate(120%);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--radius-glass);
-  transition: var(--transition-smooth);
-}
-
-.glass-panel:hover {
-  border-color: rgba(var(--accent-color-rgb), 0.15);
-  box-shadow: var(--glass-shadow), 0 0 24px rgba(var(--accent-color-rgb), 0.02);
-}
-
-.glass-capsule {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: 9999px;
-  transition: var(--transition-smooth);
-}
-
-/* Dot grid background texture */
-.dot-grid {
-  background-image: radial-gradient(var(--glass-border) 1px, transparent 1px);
+/* Clean background grid pattern for Frosted; stark background for Gallery */
+[data-style="frosted"] .dot-grid-bg {
+  background-image: radial-gradient(#e5e5e5 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* Leaflet dark/light custom overrides */
+[data-style="gallery"] .dot-grid-bg {
+  background-image: none;
+  background-color: #ffffff;
+}
+
+/* Unified container structures applying dynamic radius/borders */
+.mono-card {
+  background-color: var(--color-paper);
+  border: var(--border-thickness) solid var(--color-hairline);
+  box-shadow: var(--shadow-main);
+  border-radius: var(--radius-card);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.mono-cell {
+  background-color: var(--color-paper);
+  border: var(--border-thickness) solid var(--color-hairline);
+  border-radius: var(--radius-card);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+[data-style="gallery"] .mono-cell:hover {
+  border-color: var(--color-ink-soft);
+}
+
+[data-style="frosted"] .mono-cell:hover {
+  border-color: rgba(10, 10, 10, 0.15);
+  box-shadow: var(--shadow-main), 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+/* Monochromatic inputs */
+.mono-input {
+  background-color: var(--color-surface-alt);
+  color: var(--color-ink);
+  border-radius: var(--radius-element);
+  transition: all 0.2s ease;
+}
+
+[data-style="frosted"] .mono-input {
+  border: 1px solid transparent;
+}
+
+[data-style="frosted"] .mono-input:focus-within {
+  border-color: #e5e5e5;
+  background-color: #ffffff;
+}
+
+[data-style="gallery"] .mono-input {
+  background-color: #ffffff;
+  border-bottom: 1px solid #000000;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+[data-style="gallery"] .mono-input:focus-within {
+  border-bottom: 2px solid #000000;
+}
+
+/* Monochromatic buttons */
+.mono-btn-primary {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  border-radius: var(--radius-element);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+[data-style="gallery"] .mono-btn-primary {
+  font-family: var(--font-condensed);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.mono-btn-primary:hover {
+  background-color: var(--color-ink-soft);
+}
+
+.mono-btn-secondary {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  border-radius: var(--radius-element);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+[data-style="gallery"] .mono-btn-secondary {
+  font-family: var(--font-condensed);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background-color: transparent;
+  border: 1px solid var(--color-hairline);
+}
+
+[data-style="gallery"] .mono-btn-secondary:hover {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.mono-btn-outline {
+  background-color: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-element);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+[data-style="gallery"] .mono-btn-outline {
+  font-family: var(--font-condensed);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-width: 2px;
+}
+
+[data-style="gallery"] .mono-btn-outline:hover {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* Monochromatic badge */
+.mono-badge-solid {
+  background-color: var(--color-ink-soft);
+  color: var(--color-paper);
+  border-radius: var(--radius-element);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+}
+
+.mono-badge-soft {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  border-radius: var(--radius-element);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+}
+
+[data-style="gallery"] .mono-badge-soft,
+[data-style="gallery"] .mono-badge-solid {
+  font-family: var(--font-condensed);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 1px solid var(--color-hairline);
+  border-radius: 0px;
+}
+
+/* Leaflet Container Custom Styling for Achromatic Theme */
 .leaflet-container {
   width: 100%;
   height: 100%;
-  border-radius: var(--radius-glass);
-  background-color: var(--bg-primary) !important;
-  font-family: inherit;
+  border-radius: var(--radius-card);
+  border: var(--border-thickness) solid var(--color-hairline);
+  background-color: var(--color-canvas) !important;
 }
 
-/* Customize leaflet controls for premium look */
 .leaflet-bar {
-  border: 1px solid var(--glass-border) !important;
-  box-shadow: var(--glass-shadow) !important;
-  border-radius: 12px !important;
+  border: var(--border-thickness) solid var(--color-hairline) !important;
+  box-shadow: var(--shadow-main) !important;
+  border-radius: var(--radius-element) !important;
   overflow: hidden;
 }
 
 .leaflet-bar a {
-  background-color: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  border-bottom: 1px solid var(--glass-border) !important;
-  transition: var(--transition-fast) !important;
+  background-color: var(--color-paper) !important;
+  color: var(--color-ink) !important;
+  border-bottom: 1px solid var(--color-hairline) !important;
+  transition: all 0.2s ease !important;
 }
 
 .leaflet-bar a:hover {
-  background-color: var(--accent-color) !important;
-  color: #ffffff !important;
+  background-color: var(--color-canvas) !important;
 }
 
-.leaflet-control-zoom {
-  border: none !important;
-}
-
-.leaflet-control-attribution {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(8px);
-  color: var(--text-secondary) !important;
-  font-size: 10px !important;
-  border-radius: 4px;
-  margin: 4px !important;
-  padding: 0 4px !important;
-  border: 1px solid var(--glass-border);
-}
-
-/* Custom Marker Styling */
-.weather-leaflet-marker {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: white;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 2px solid white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  font-size: 11px;
-  transition: transform 0.2s ease;
-}
-
-.weather-leaflet-marker:hover {
-  transform: scale(1.15);
-  z-index: 1000 !important;
-}
-
-/* Custom Webkit scrollbars */
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -273,10 +261,9 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--glass-border);
-  border-radius: 3px;
+  background: var(--color-hairline);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-color);
+  background: var(--color-ink);
 }

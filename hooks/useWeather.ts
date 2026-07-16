@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   WeatherData,
   LocationResult,
-  ThemeType,
-  AccentType,
   LayerType,
 } from "../types/weather";
+
+export type StyleModeType = "frosted" | "gallery";
 
 export function useWeather() {
   // Default coordinates: London, UK
@@ -30,9 +30,8 @@ export function useWeather() {
   const [searchResults, setSearchResults] = useState<LocationResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Layout Themes & Customizations
-  const [theme, setTheme] = useState<ThemeType>("dark");
-  const [accent, setAccent] = useState<AccentType>("red");
+  // Layout style mode (frosted = Frosted Paper / shadcn, gallery = Gallery Grid / Mono X7 Brutalist)
+  const [styleMode, setStyleMode] = useState<StyleModeType>("frosted");
   const [activeLayer, setActiveLayer] = useState<LayerType>("temp");
 
   // Offline detection
@@ -55,44 +54,29 @@ export function useWeather() {
     };
   }, []);
 
-  // Sync and load theme/accent from localStorage
+  // Sync and load style mode from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const savedTheme = localStorage.getItem("sunblock-theme") as ThemeType;
-    const savedAccent = localStorage.getItem("sunblock-accent") as AccentType;
+    const savedStyle = localStorage.getItem("sunblock-style-mode") as StyleModeType;
 
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.setAttribute("data-theme", savedTheme);
+    if (savedStyle && (savedStyle === "frosted" || savedStyle === "gallery")) {
+      setStyleMode(savedStyle);
+      document.documentElement.setAttribute("data-style", savedStyle);
     } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const initialTheme = prefersDark ? "dark" : "light";
-      setTheme(initialTheme);
-      document.documentElement.setAttribute("data-theme", initialTheme);
-    }
-
-    if (savedAccent) {
-      setAccent(savedAccent);
-      document.documentElement.setAttribute("data-accent", savedAccent);
+      setStyleMode("frosted");
+      document.documentElement.setAttribute("data-style", "frosted");
     }
   }, []);
 
-  // Toggle Theme helper
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const nextTheme = prev === "dark" ? "light" : "dark";
-      localStorage.setItem("sunblock-theme", nextTheme);
-      document.documentElement.setAttribute("data-theme", nextTheme);
-      return nextTheme;
+  // Toggle Style Mode helper
+  const toggleStyleMode = useCallback(() => {
+    setStyleMode((prev) => {
+      const nextStyle = prev === "frosted" ? "gallery" : "frosted";
+      localStorage.setItem("sunblock-style-mode", nextStyle);
+      document.documentElement.setAttribute("data-style", nextStyle);
+      return nextStyle;
     });
-  }, []);
-
-  // Set Accent helper
-  const selectAccent = useCallback((newAccent: AccentType) => {
-    setAccent(newAccent);
-    localStorage.setItem("sunblock-accent", newAccent);
-    document.documentElement.setAttribute("data-accent", newAccent);
   }, []);
 
   // Main Weather Fetcher
@@ -205,10 +189,8 @@ export function useWeather() {
     searchResults,
     setSearchResults,
     isSearching,
-    theme,
-    toggleTheme,
-    accent,
-    selectAccent,
+    styleMode,
+    toggleStyleMode,
     activeLayer,
     setActiveLayer,
     isOffline,
