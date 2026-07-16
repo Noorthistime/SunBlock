@@ -7,7 +7,7 @@ import {
   LayerType,
 } from "../types/weather";
 
-export type StyleModeType = "frosted" | "gallery" | "apple";
+export type StyleModeType = "frosted" | "gallery";
 export type ThemeType = "light" | "dark";
 
 export function useWeather() {
@@ -63,7 +63,7 @@ export function useWeather() {
     const savedStyle = localStorage.getItem("sunblock-style-mode") as StyleModeType;
     const savedTheme = localStorage.getItem("sunblock-theme") as ThemeType;
 
-    if (savedStyle && (savedStyle === "frosted" || savedStyle === "gallery" || savedStyle === "apple")) {
+    if (savedStyle && (savedStyle === "frosted" || savedStyle === "gallery")) {
       setStyleMode(savedStyle);
       document.documentElement.setAttribute("data-style", savedStyle);
     } else {
@@ -82,11 +82,14 @@ export function useWeather() {
     }
   }, []);
 
-  // Change Style Mode helper
-  const changeStyleMode = useCallback((nextStyle: StyleModeType) => {
-    setStyleMode(nextStyle);
-    localStorage.setItem("sunblock-style-mode", nextStyle);
-    document.documentElement.setAttribute("data-style", nextStyle);
+  // Toggle Style Mode helper
+  const toggleStyleMode = useCallback(() => {
+    setStyleMode((prev) => {
+      const nextStyle = prev === "frosted" ? "gallery" : "frosted";
+      localStorage.setItem("sunblock-style-mode", nextStyle);
+      document.documentElement.setAttribute("data-style", nextStyle);
+      return nextStyle;
+    });
   }, []);
 
   // Toggle Theme helper
@@ -210,7 +213,7 @@ export function useWeather() {
     setSearchResults,
     isSearching,
     styleMode,
-    changeStyleMode,
+    toggleStyleMode,
     theme,
     toggleTheme,
     activeLayer,

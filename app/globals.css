@@ -90,38 +90,6 @@
   --shadow-main: none;
 }
 
-/* 3. Apple Neo Mode - LIGHT */
-[data-style="apple"][data-theme="light"] {
-  --color-canvas: #f5f5f7;
-  --color-paper: #ffffff;
-  --color-surface-alt: #fafafc;
-  --color-ink: #1d1d1f;
-  --color-ink-soft: #000000;
-  --color-mid-gray: #707070;
-  --color-hairline: #d6d6d6;
-  
-  --radius-card: 28px;
-  --radius-element: 980px;
-  --border-thickness: 1px;
-  --shadow-main: none;
-}
-
-/* 3. Apple Neo Mode - DARK */
-[data-style="apple"][data-theme="dark"] {
-  --color-canvas: #000000;
-  --color-paper: #1d1d1f;
-  --color-surface-alt: #121212;
-  --color-ink: #f5f5f7;
-  --color-ink-soft: #ffffff;
-  --color-mid-gray: #858585;
-  --color-hairline: #333333;
-  
-  --radius-card: 28px;
-  --radius-element: 980px;
-  --border-thickness: 1px;
-  --shadow-main: none;
-}
-
 body {
   background-color: var(--color-canvas);
   color: var(--color-ink);
@@ -131,14 +99,13 @@ body {
   min-height: 100vh;
 }
 
-/* Clean background grid pattern for Frosted; stark background for Gallery and Apple */
+/* Clean background grid pattern for Frosted; stark background for Gallery */
 [data-style="frosted"] .dot-grid-bg {
   background-image: radial-gradient(var(--color-hairline) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-[data-style="gallery"] .dot-grid-bg,
-[data-style="apple"] .dot-grid-bg {
+[data-style="gallery"] .dot-grid-bg {
   background-image: none;
 }
 
@@ -191,16 +158,6 @@ body {
   border-bottom: 2px solid var(--color-ink-soft);
 }
 
-[data-style="apple"] .mono-input {
-  border: 1px solid var(--color-hairline);
-  background-color: var(--color-surface-alt);
-}
-
-[data-style="apple"] .mono-input:focus-within {
-  border-color: #0071e3;
-  box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.15);
-}
-
 /* Monochromatic buttons */
 .mono-btn-primary {
   background-color: var(--color-ink);
@@ -217,17 +174,8 @@ body {
   letter-spacing: 0.1em;
 }
 
-[data-style="apple"] .mono-btn-primary {
-  background-color: #0071e3;
-  color: #ffffff;
-}
-
 .mono-btn-primary:hover {
   background-color: var(--color-ink-soft);
-}
-
-[data-style="apple"] .mono-btn-primary:hover {
-  background-color: #0066cc;
 }
 
 .mono-btn-secondary {
@@ -251,24 +199,6 @@ body {
   color: var(--color-paper);
 }
 
-[data-style="apple"] .mono-btn-secondary {
-  background-color: #e8e8ed;
-  color: #1d1d1f;
-}
-
-[data-style="apple"][data-theme="dark"] .mono-btn-secondary {
-  background-color: #333333;
-  color: #f5f5f7;
-}
-
-[data-style="apple"] .mono-btn-secondary:hover {
-  background-color: #dcdce1;
-}
-
-[data-style="apple"][data-theme="dark"] .mono-btn-secondary:hover {
-  background-color: #444444;
-}
-
 .mono-btn-outline {
   background-color: transparent;
   color: var(--color-ink);
@@ -288,16 +218,6 @@ body {
 [data-style="gallery"] .mono-btn-outline:hover {
   background-color: var(--color-ink);
   color: var(--color-paper);
-}
-
-[data-style="apple"] .mono-btn-outline {
-  border-color: #0066cc;
-  color: #0066cc;
-}
-
-[data-style="apple"] .mono-btn-outline:hover {
-  background-color: #0066cc;
-  color: #ffffff;
 }
 
 /* Monochromatic badge */
@@ -326,34 +246,6 @@ body {
   letter-spacing: 0.1em;
   border: 1px solid var(--color-hairline);
   border-radius: 0px;
-}
-
-[data-style="apple"] .mono-badge-solid {
-  background-color: #b64400; /* Apple Neo Orange Ember */
-  color: #ffffff;
-  border-radius: 36px;
-}
-
-/* Apple Warning Banners Styling */
-[data-style="apple"] .border-\[\#e7000b\] {
-  border-color: #b64400 !important;
-}
-
-[data-style="apple"] .text-\[\#e7000b\] {
-  color: #b64400 !important;
-}
-
-[data-style="apple"] .bg-paper {
-  background-color: var(--color-paper) !important;
-}
-
-[data-style="apple"] .hover\:bg-\[\#e7000b\]\/10:hover {
-  background-color: rgba(182, 68, 0, 0.1) !important;
-}
-
-[data-style="apple"] .hover\:bg-\[\#e7000b\]:hover {
-  background-color: #b64400 !important;
-  color: #ffffff !important;
 }
 
 /* Leaflet Container Custom Styling for Achromatic Theme */
