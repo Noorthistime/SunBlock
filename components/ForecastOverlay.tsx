@@ -44,14 +44,14 @@ export default function ForecastOverlay({ forecast, styleMode }: ForecastOverlay
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, y: isGallery ? 0 : 15 },
-    show: { opacity: 1, y: 0, transition: { type: "tween", duration: 0.25 } },
+    hidden: { opacity: 0, x: isGallery ? 0 : 15 },
+    show: { opacity: 1, x: 0, transition: { type: "tween", duration: 0.25 } },
   };
 
   return (
     <div className="w-full">
       <div 
-        className={`flex items-center gap-1.5 text-xs text-mid-gray uppercase mb-4 pl-1 ${
+        className={`flex items-center gap-1.5 text-xs text-mid-gray uppercase mb-3 pl-1 ${
           isGallery ? "font-condensed tracking-[0.2em] font-semibold text-[11px]" : "font-semibold tracking-wider"
         }`}
       >
@@ -63,7 +63,7 @@ export default function ForecastOverlay({ forecast, styleMode }: ForecastOverlay
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-2 sm:grid-cols-5 gap-3.5"
+        className="flex flex-col gap-2.5"
       >
         {upcomingForecast.map((day) => {
           const { weekday, label } = formatDate(day.date);
@@ -74,18 +74,18 @@ export default function ForecastOverlay({ forecast, styleMode }: ForecastOverlay
             <motion.div
               key={day.date}
               variants={cardVariants}
-              whileHover={isGallery ? {} : { y: -4 }}
-              className={`mono-card p-4 flex flex-col justify-between items-center text-center bg-paper relative group ${
+              whileHover={isGallery ? {} : { x: 4 }}
+              className={`mono-card p-3.5 flex items-center justify-between bg-paper relative group ${
                 isGallery 
                   ? "border-2 border-hairline rounded-none" 
                   : "border-hairline shadow-sm rounded-[24px]"
               }`}
             >
               {/* Day details */}
-              <div className="mb-2">
+              <div className="flex flex-col text-left min-w-[70px]">
                 <p 
                   className={`text-xs font-bold text-ink tracking-wide ${
-                    isGallery ? "font-condensed tracking-[0.1em] uppercase" : ""
+                    isGallery ? "font-condensed tracking-[0.1em] uppercase text-[11px]" : ""
                   }`}
                 >
                   {weekday.toUpperCase()}
@@ -101,17 +101,17 @@ export default function ForecastOverlay({ forecast, styleMode }: ForecastOverlay
 
               {/* Weather Icon */}
               <div 
-                className={`h-10 w-10 flex items-center justify-center border text-mid-gray bg-canvas/30 ${
+                className={`h-8 w-8 flex items-center justify-center border text-mid-gray bg-canvas/30 shrink-0 ${
                   isGallery 
                     ? "border-2 border-hairline rounded-none" 
-                    : "border-hairline/60 rounded-xl"
+                    : "border-hairline/60 rounded-lg"
                 }`}
               >
-                <Icon className="h-5 w-5 shrink-0" />
+                <Icon className="h-4.5 w-4.5 shrink-0" />
               </div>
 
               {/* Temperature Bounds */}
-              <div className="flex items-center justify-center gap-2.5 my-2">
+              <div className="flex items-center gap-2 min-w-[50px] justify-center">
                 <span className="text-xs font-bold text-ink">
                   {Math.round(day.tempMax)}°
                 </span>
@@ -120,31 +120,20 @@ export default function ForecastOverlay({ forecast, styleMode }: ForecastOverlay
                 </span>
               </div>
 
-              {/* Extras Grid */}
+              {/* Extras indicators side-by-side */}
               <div 
-                className={`w-full border-t border-hairline/40 mt-3 pt-2 flex flex-col gap-1 text-[9px] text-mid-gray font-semibold ${
+                className={`flex gap-3 text-[9px] text-mid-gray font-semibold ${
                   isGallery ? "font-condensed tracking-[0.05em]" : ""
                 }`}
               >
-                
-                {/* Rain probability */}
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-0.5 font-normal">
-                    <Droplets className="h-2.5 w-2.5 shrink-0" />
-                    <span>RAIN</span>
-                  </span>
+                <div className="flex items-center gap-0.5">
+                  <Droplets className="h-2.5 w-2.5 shrink-0" />
                   <span className="text-ink font-bold">{day.rainProb}%</span>
                 </div>
-
-                {/* Wind max */}
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-0.5 font-normal">
-                    <Wind className="h-2.5 w-2.5 shrink-0" />
-                    <span>WIND</span>
-                  </span>
+                <div className="flex items-center gap-0.5">
+                  <Wind className="h-2.5 w-2.5 shrink-0" />
                   <span className="text-ink font-bold">{Math.round(day.windSpeed)}k</span>
                 </div>
-
               </div>
 
               {/* Decorative Corner Mark for Gallery */}

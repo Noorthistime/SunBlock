@@ -42,34 +42,49 @@ export default function Dashboard() {
     });
   };
 
-  // Weather Card Loading Skeleton
-  const renderWeatherCardSkeleton = () => (
-    <div className={`mono-card p-6 md:p-8 h-full bg-paper animate-pulse ${isGallery ? "border-2 rounded-none" : "border rounded-[24px]"}`}>
-      <div className="h-4 w-28 bg-canvas rounded-full mb-3" />
-      <div className="h-8 w-48 bg-canvas rounded-lg mb-2" />
-      <div className="h-4 w-32 bg-canvas rounded-full mb-8" />
-      
-      <div className="flex justify-between items-center mb-10">
-        <div>
-          <div className="h-16 w-28 bg-canvas rounded-2xl mb-2" />
-          <div className="h-4 w-20 bg-canvas rounded-full" />
+  // Weather Sidebar Loading Skeleton
+  const renderSidebarSkeleton = () => (
+    <div className="flex flex-col gap-6 w-full">
+      {/* Weather card skeleton */}
+      <div className={`mono-card p-6 md:p-8 bg-paper animate-pulse ${isGallery ? "border-2 rounded-none" : "border rounded-[24px]"}`}>
+        <div className="h-4 w-28 bg-canvas rounded-full mb-3" />
+        <div className="h-8 w-48 bg-canvas rounded-lg mb-2" />
+        <div className="h-4 w-32 bg-canvas rounded-full mb-8" />
+        
+        <div className="flex justify-between items-center mb-10">
+          <div>
+            <div className="h-16 w-28 bg-canvas rounded-2xl mb-2" />
+            <div className="h-4 w-20 bg-canvas rounded-full" />
+          </div>
+          <div className="h-16 w-16 bg-canvas border border-hairline rounded-xl" />
         </div>
-        <div className="h-16 w-16 bg-canvas border border-hairline rounded-xl" />
-      </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-8">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className={`h-14 bg-canvas/30 border border-hairline/60 ${isGallery ? "rounded-none" : "rounded-[18px]"}`} />
-        ))}
-      </div>
-
-      <div className="border-t border-hairline pt-6">
-        <div className="h-4 w-24 bg-canvas rounded-full mb-4" />
-        <div className="flex flex-col gap-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className={`h-10 bg-canvas/30 border border-hairline/60 ${isGallery ? "rounded-none" : "rounded-[18px]"}`} />
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className={`h-14 bg-canvas/30 border border-hairline/60 ${isGallery ? "rounded-none" : "rounded-[18px]"}`} />
           ))}
         </div>
+
+        <div className="border-t border-hairline pt-6">
+          <div className="h-4 w-24 bg-canvas rounded-full mb-4" />
+          <div className="flex flex-col gap-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className={`h-10 bg-canvas/30 border border-hairline/60 ${isGallery ? "rounded-none" : "rounded-[18px]"}`} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Forecast list skeleton */}
+      <div className="flex flex-col gap-2.5 animate-pulse">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div 
+            key={i} 
+            className={`h-16 bg-canvas/30 border border-hairline ${
+              isGallery ? "rounded-none border-2" : "rounded-2xl"
+            }`} 
+          />
+        ))}
       </div>
     </div>
   );
@@ -156,35 +171,12 @@ export default function Dashboard() {
             }`}
           >
             
-            {/* Left Panel: Weather stats metrics */}
+            {/* Left Panel: Map Radar (70% - Col Span 8) */}
             <div 
-              className={`lg:col-span-4 h-full flex flex-col ${
-                isGallery ? "border-r-2 border-hairline p-6 bg-paper" : ""
+              className={`lg:col-span-8 flex flex-col justify-between ${
+                isGallery ? "p-6 bg-paper gap-6 border-r-2 border-hairline" : "gap-6"
               }`}
             >
-              {isLoading && !weatherData ? (
-                renderWeatherCardSkeleton()
-              ) : (
-                <div className="h-full flex-1">
-                  <WeatherCard
-                    locationName={currentLocation.name}
-                    data={weatherData}
-                    activeLayer={activeLayer}
-                    setActiveLayer={setActiveLayer}
-                    styleMode={styleMode}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Right Panel: Map Radar + Forecast Overlay */}
-            <div 
-              className={`lg:col-span-8 flex flex-col h-full justify-between ${
-                isGallery ? "p-6 bg-paper gap-6" : "gap-6"
-              }`}
-            >
-              
-              {/* Leaflet Map Radar card */}
               <div className="flex-1 min-h-[400px] md:min-h-[500px]">
                 {weatherData ? (
                   <div className="relative w-full h-full">
@@ -225,25 +217,33 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
+            </div>
 
-              {/* 5-Day Forecast overlay */}
-              <div className="w-full">
-                {isLoading && !weatherData ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 animate-pulse">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <div 
-                        key={i} 
-                        className={`h-32 bg-canvas/30 border border-hairline ${
-                          isGallery ? "rounded-none border-2" : "rounded-2xl"
-                        }`} 
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  weatherData && <ForecastOverlay forecast={weatherData.forecast} styleMode={styleMode} />
-                )}
-              </div>
-
+            {/* Right Panel: Current Weather Stats Card & Forecast Overlay (30% - Col Span 4) */}
+            <div 
+              className={`lg:col-span-4 h-full flex flex-col gap-6 ${
+                isGallery ? "p-6 bg-paper" : ""
+              }`}
+            >
+              {isLoading && !weatherData ? (
+                renderSidebarSkeleton()
+              ) : (
+                weatherData && (
+                  <>
+                    <WeatherCard
+                      locationName={currentLocation.name}
+                      data={weatherData}
+                      activeLayer={activeLayer}
+                      setActiveLayer={setActiveLayer}
+                      styleMode={styleMode}
+                    />
+                    <ForecastOverlay 
+                      forecast={weatherData.forecast} 
+                      styleMode={styleMode} 
+                    />
+                  </>
+                )
+              )}
             </div>
 
           </div>
