@@ -54,6 +54,7 @@ export default function WeatherMap({
       zoomControl: true,
       scrollWheelZoom: true,
       fadeAnimation: true,
+      attributionControl: false,
     });
 
     mapRef.current = map;
@@ -94,7 +95,7 @@ export default function WeatherMap({
     const targetCenter = L.latLng(lat, lon);
 
     if (currentCenter.distanceTo(targetCenter) > 500) {
-      mapRef.current.flyTo(targetCenter, 9.5, {
+      mapRef.current.flyTo(targetCenter, mapRef.current.getZoom(), {
         animate: true,
         duration: 1.5,
       });
