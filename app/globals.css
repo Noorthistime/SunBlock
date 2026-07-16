@@ -292,3 +292,77 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-ink);
 }
+
+/* --- Branding Eclipse & Typography Animations --- */
+@keyframes corona-glow-pulse {
+  0%, 100% {
+    opacity: 0.06;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.22;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes corona-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes moon-slide-move {
+  0%, 100% {
+    transform: translate(0px, 0px);
+  }
+  50% {
+    transform: translate(11px, 11px);
+  }
+}
+
+@keyframes title-spacing-breathe {
+  0%, 100% {
+    letter-spacing: -0.03em;
+    opacity: 0.95;
+  }
+  50% {
+    letter-spacing: 0.03em;
+    opacity: 1;
+  }
+}
+
+@keyframes title-spacing-breathe-gallery {
+  0%, 100% {
+    letter-spacing: -0.01em;
+    opacity: 0.95;
+  }
+  50% {
+    letter-spacing: 0.12em;
+    opacity: 1;
+  }
+}
+
+.animate-corona-glow {
+  animation: corona-glow-pulse 6s infinite ease-in-out;
+}
+
+.animate-corona-rotate {
+  animation: corona-spin 25s infinite linear;
+  transform-origin: center;
+}
+
+.animate-moon-slide {
+  animation: moon-slide-move 14s infinite ease-in-out;
+}
+
+.animate-title-breathe {
+  animation: title-spacing-breathe 7s infinite ease-in-out;
+}
+
+.animate-title-breathe-gallery {
+  animation: title-spacing-breathe-gallery 7s infinite ease-in-out;
+}
+

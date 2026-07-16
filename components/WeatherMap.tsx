@@ -51,10 +51,17 @@ export default function WeatherMap({
     const map = L.map(mapContainerRef.current, {
       center: [lat, lon],
       zoom: 9,
+      minZoom: 2,
+      maxZoom: 18,
       zoomControl: true,
       scrollWheelZoom: true,
       fadeAnimation: true,
       attributionControl: false,
+      maxBounds: [
+        [-85, -180],
+        [85, 180]
+      ],
+      maxBoundsViscosity: 1.0,
     });
 
     mapRef.current = map;
@@ -70,6 +77,11 @@ export default function WeatherMap({
     const tileLayer = L.tileLayer(theme === "dark" ? darkTiles : lightTiles, {
       attribution,
       maxZoom: 19,
+      noWrap: true,
+      bounds: [
+        [-85, -180],
+        [85, 180]
+      ]
     }).addTo(map);
 
     tileLayerRef.current = tileLayer;

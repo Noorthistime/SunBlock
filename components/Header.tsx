@@ -76,23 +76,54 @@ export default function Header({
       >
         
         {/* Branding */}
-        <div className="flex items-center gap-2">
-          {!isGallery && (
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper animate-spin-slow">
-              <Grid className="h-4 w-4" />
-            </div>
-          )}
+        <div className="flex items-center gap-3">
+          {/* Animated Eclipse Logo */}
+          <div className="relative flex h-8 w-8 items-center justify-center select-none shrink-0">
+            {/* Ambient Corona Shadow */}
+            <div className="absolute inset-0 rounded-full bg-ink opacity-10 blur-[4px] animate-corona-glow" />
+            
+            <svg viewBox="0 0 100 100" className="h-full w-full relative z-10">
+              {/* Pulsing Sun Corona Ring */}
+              <circle
+                cx="50"
+                cy="50"
+                r="38"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeDasharray="5 3"
+                className="text-ink animate-corona-rotate"
+              />
+              {/* Solid glowing Sun Core */}
+              <circle
+                cx="50"
+                cy="50"
+                r="26"
+                fill="currentColor"
+                className="text-ink opacity-90"
+              />
+              {/* Blocking Moon Core */}
+              <circle
+                cx="44"
+                cy="44"
+                r="25"
+                fill="var(--color-paper)"
+                className="animate-moon-slide"
+              />
+            </svg>
+          </div>
+
           <span 
             className={`${
               isGallery 
-                ? "font-sans text-xl font-light tracking-[-0.02em] text-ink uppercase" 
-                : "font-sans text-lg md:text-xl font-bold tracking-tight text-ink"
+                ? "font-sans text-xl font-light tracking-[-0.02em] text-ink uppercase animate-title-breathe-gallery" 
+                : "font-sans text-lg md:text-xl font-bold tracking-tight text-ink animate-title-breathe"
             }`}
           >
             SUN<span className="text-mid-gray font-light">BLOCK</span>
           </span>
           {isGallery && (
-            <span className="text-[10px] font-condensed tracking-[0.2em] text-mid-gray uppercase border border-hairline px-2 py-0.5 ml-2 font-medium">
+            <span className="text-[10px] font-condensed tracking-[0.2em] text-mid-gray uppercase border border-hairline px-2 py-0.5 ml-1 font-medium">
               MONO-X7
             </span>
           )}
