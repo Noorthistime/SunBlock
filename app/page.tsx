@@ -22,7 +22,7 @@ export default function Dashboard() {
     searchResults,
     isSearching,
     styleMode,
-    toggleStyleMode,
+    changeStyleMode,
     theme,
     toggleTheme,
     activeLayer,
@@ -143,7 +143,7 @@ export default function Dashboard() {
       {/* Dynamic layout header */}
       <Header
         styleMode={styleMode}
-        toggleStyleMode={toggleStyleMode}
+        changeStyleMode={changeStyleMode}
         theme={theme}
         toggleTheme={toggleTheme}
         searchQuery={searchQuery}
@@ -300,10 +300,10 @@ export default function Dashboard() {
 
       </main>
 
-      {/* Museum-style Footer Bar for Gallery Mode / Clean subtle footer for Frosted */}
-      {isGallery && (
-        <footer className="w-full border-t-2 border-hairline bg-paper mt-12">
-          <div className="max-w-[1280px] mx-auto px-6 py-5 flex items-center justify-between text-[10px] font-condensed tracking-[0.2em] font-medium text-mid-gray uppercase">
+      {/* Museum-style Footer Bar for Gallery Mode & clean text footer for Apple Neo / Frosted */}
+      {(isGallery || styleMode === "apple") && (
+        <footer className="w-full border-t border-hairline bg-paper mt-12">
+          <div className="w-full px-6 py-5 flex items-center justify-between text-[10px] font-sans tracking-[0.05em] font-medium text-mid-gray uppercase">
             <span>© SUNBLOCK INC. 2026</span>
             <div className="flex gap-6">
               <a href="#" className="hover:text-ink">Radar Details</a>

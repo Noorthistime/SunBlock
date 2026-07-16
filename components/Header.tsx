@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Compass, MapPin, Grid, Sun, Moon } from "lucide-react";
+import { Search, Compass, MapPin, Sun, Moon } from "lucide-react";
 import { LocationResult } from "../types/weather";
-import { StyleModeType } from "../hooks/useWeather";
-import { ThemeType } from "../hooks/useWeather";
+import { StyleModeType, ThemeType } from "../hooks/useWeather";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface HeaderProps {
   styleMode: StyleModeType;
-  toggleStyleMode: () => void;
+  changeStyleMode: (mode: StyleModeType) => void;
   theme: ThemeType;
   toggleTheme: () => void;
   searchQuery: string;
@@ -22,7 +21,7 @@ interface HeaderProps {
 
 export default function Header({
   styleMode,
-  toggleStyleMode,
+  changeStyleMode,
   theme,
   toggleTheme,
   searchQuery,
@@ -33,13 +32,19 @@ export default function Header({
   getUserLocation,
 }: HeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
-  // Close dropdown on outside click
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (modeMenuRef.current && !modeMenuRef.current.contains(event.target as Node)) {
+        setModeMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -64,6 +69,8 @@ export default function Header({
       className={`${
         isGallery 
           ? "border-b-2 border-hairline bg-paper w-full z-50 sticky top-0" 
+          : styleMode === "apple"
+          ? "sticky top-4 z-50 mx-auto w-full px-4 md:px-6"
           : "sticky top-4 z-50 mx-auto w-full px-4 md:px-6"
       }`}
     >
@@ -71,6 +78,8 @@ export default function Header({
         className={`${
           isGallery 
             ? "flex items-center justify-between py-4 px-6 w-full mx-auto" 
+            : styleMode === "apple"
+            ? "flex items-center justify-between p-2 pl-4 md:p-3 md:pl-6 border border-hairline bg-paper/80 backdrop-blur-md rounded-full shadow-none"
             : "glass-capsule flex items-center justify-between p-2 pl-4 md:p-3 md:pl-6 border border-hairline shadow-main bg-paper/70 backdrop-blur-md"
         }`}
       >
@@ -117,6 +126,8 @@ export default function Header({
             className={`${
               isGallery 
                 ? "font-sans text-xl font-light tracking-[-0.02em] text-ink uppercase" 
+                : styleMode === "apple"
+                ? "font-sans text-lg md:text-xl font-semibold tracking-[-0.015em] text-ink"
                 : "font-sans text-lg md:text-xl font-bold tracking-tight text-ink"
             }`}
           >
@@ -127,6 +138,11 @@ export default function Header({
               MONO-X7
             </span>
           )}
+          {styleMode === "apple" && (
+            <span className="text-[10px] font-sans tracking-[0.05em] text-[#0071e3] uppercase px-2 py-0.5 ml-0.5 font-semibold">
+              NEO
+            </span>
+          )}
         </div>
 
         {/* Search Bar Capsule */}
@@ -135,13 +151,15 @@ export default function Header({
             className={`${
               isGallery 
                 ? "relative flex items-center w-full bg-transparent border-b border-ink px-1 py-1" 
+                : styleMode === "apple"
+                ? "relative flex items-center w-full rounded-full bg-canvas/40 border border-hairline px-3 py-1.5 focus-within:border-[#0071e3] focus-within:bg-paper focus-within:ring-2 focus-within:ring-[#0071e3]/15 transition-all duration-300"
                 : "relative flex items-center w-full rounded-full bg-canvas/60 border border-transparent px-3 py-1.5 focus-within:border-hairline focus-within:bg-paper transition-all duration-300"
             }`}
           >
             <Search className="h-4 w-4 text-mid-gray mr-2 shrink-0" />
             <input
               type="text"
-              placeholder={isGallery ? "ENTER CITY NAME..." : "Search cities..."}
+              placeholder={isGallery ? "ENTER CITY NAME..." : styleMode === "apple" ? "Search coordinates/cities..." : "Search cities..."}
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -151,6 +169,8 @@ export default function Header({
               className={`w-full bg-transparent text-sm text-ink focus:outline-none ${
                 isGallery 
                   ? "placeholder-mid-gray/40 uppercase font-condensed tracking-[0.1em] text-xs font-semibold" 
+                  : styleMode === "apple"
+                  ? "placeholder-mid-gray/50 tracking-[-0.01em]"
                   : "placeholder-mid-gray/60"
               }`}
             />
@@ -161,6 +181,8 @@ export default function Header({
               className={`p-1 text-mid-gray hover:text-ink transition-colors ${
                 isGallery 
                   ? "font-condensed text-[10px] tracking-[0.15em] font-semibold border border-hairline px-2.5 py-0.5 hover:bg-ink hover:text-paper" 
+                  : styleMode === "apple"
+                  ? "rounded-full hover:bg-canvas p-1"
                   : "rounded-full hover:bg-canvas"
               }`}
             >
@@ -177,7 +199,7 @@ export default function Header({
                 exit={{ opacity: 0, y: isGallery ? 0 : 10 }}
                 transition={{ duration: 0.15 }}
                 className={`absolute left-0 right-0 mt-2 bg-paper shadow-main border border-hairline overflow-hidden max-h-60 overflow-y-auto z-50 ${
-                  isGallery ? "rounded-none border-2" : "rounded-2xl"
+                  isGallery ? "rounded-none border-2" : styleMode === "apple" ? "rounded-[18px]" : "rounded-2xl"
                 }`}
               >
                 {isSearching ? (
@@ -243,22 +265,63 @@ export default function Header({
             </button>
           )}
 
-          {/* Style Selector Toggle */}
-          {isGallery ? (
+          {/* Mode Dropdown Selector */}
+          <div className="relative" ref={modeMenuRef}>
             <button
-              onClick={toggleStyleMode}
-              className="font-condensed text-[11px] tracking-[0.2em] font-medium text-ink hover:text-mid-gray uppercase cursor-pointer border-2 border-ink px-3 py-1 bg-paper hover:bg-ink hover:text-paper transition-all duration-300"
+              onClick={() => setModeMenuOpen(!modeMenuOpen)}
+              className={
+                isGallery
+                  ? "font-condensed text-[11px] tracking-[0.2em] font-medium text-ink hover:text-mid-gray uppercase cursor-pointer border-2 border-ink px-3 py-1 bg-paper transition-all duration-300"
+                  : styleMode === "apple"
+                  ? "font-sans text-xs font-semibold text-ink hover:bg-canvas/80 bg-paper border border-hairline px-4 py-1.5 rounded-full select-none cursor-pointer"
+                  : "mono-btn-outline px-4 py-1.5 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-ink hover:text-paper transition-all duration-300"
+              }
             >
-              <span>FROSTED MODE</span>
+              <span>MODE: {styleMode === "apple" ? "APPLE NEO" : styleMode === "frosted" ? "FROSTED" : "GALLERY"}</span>
             </button>
-          ) : (
-            <button
-              onClick={toggleStyleMode}
-              className="mono-btn-outline px-4 py-1.5 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-ink hover:text-paper transition-all duration-300"
-            >
-              <span>GALLERY GRID</span>
-            </button>
-          )}
+
+            <AnimatePresence>
+              {modeMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: isGallery ? 0 : 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: isGallery ? 0 : 5 }}
+                  transition={{ duration: 0.15 }}
+                  className={`absolute right-0 mt-2 bg-paper border border-hairline shadow-main z-50 w-36 overflow-hidden ${
+                    isGallery ? "rounded-none border-2" : styleMode === "apple" ? "rounded-[14px]" : "rounded-xl"
+                  }`}
+                >
+                  <ul className="py-1">
+                    {(["frosted", "gallery", "apple"] as StyleModeType[]).map((m) => (
+                      <li key={m}>
+                        <button
+                          onClick={() => {
+                            changeStyleMode(m);
+                            setModeMenuOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-xs text-ink hover:bg-canvas transition-colors ${
+                            styleMode === m ? "font-bold bg-canvas/30" : "font-normal text-mid-gray"
+                          } ${
+                            isGallery
+                              ? "font-condensed tracking-[0.1em] uppercase rounded-none"
+                              : styleMode === "apple"
+                              ? "font-sans tracking-[-0.01em] hover:bg-canvas/50"
+                              : ""
+                          }`}
+                        >
+                          {m === "frosted"
+                            ? "FROSTED PAPER"
+                            : m === "gallery"
+                            ? "GALLERY GRID"
+                            : "APPLE NEO"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
       </div>
