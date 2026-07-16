@@ -1,14 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Compass, MapPin, Grid, Layers } from "lucide-react";
+import { Search, Compass, MapPin, Grid, Sun, Moon } from "lucide-react";
 import { LocationResult } from "../types/weather";
 import { StyleModeType } from "../hooks/useWeather";
+import { ThemeType } from "../hooks/useWeather";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface HeaderProps {
   styleMode: StyleModeType;
   toggleStyleMode: () => void;
+  theme: ThemeType;
+  toggleTheme: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   searchResults: LocationResult[];
@@ -20,6 +23,8 @@ interface HeaderProps {
 export default function Header({
   styleMode,
   toggleStyleMode,
+  theme,
+  toggleTheme,
   searchQuery,
   setSearchQuery,
   searchResults,
@@ -73,7 +78,7 @@ export default function Header({
         {/* Branding */}
         <div className="flex items-center gap-2">
           {!isGallery && (
-            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper">
+            <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper animate-spin-slow">
               <Grid className="h-4 w-4" />
             </div>
           )}
@@ -186,12 +191,32 @@ export default function Header({
           </AnimatePresence>
         </div>
 
-        {/* Style Selector Toggle */}
-        <div className="flex items-center gap-2">
+        {/* Customization toggles */}
+        <div className="flex items-center gap-2.5">
+          {/* Theme Mode Switcher */}
+          {isGallery ? (
+            <button
+              onClick={toggleTheme}
+              className="font-condensed text-[11px] tracking-[0.2em] font-medium text-ink hover:text-mid-gray uppercase cursor-pointer border-2 border-ink px-3 py-1 bg-paper hover:bg-ink hover:text-paper transition-all duration-300"
+              title={theme === "dark" ? "LIGHT THEME" : "DARK THEME"}
+            >
+              <span>{theme === "dark" ? "LIGHT" : "DARK"}</span>
+            </button>
+          ) : (
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full border border-hairline hover:border-ink bg-canvas/30 text-mid-gray hover:text-ink transition-all duration-300 cursor-pointer"
+              title={theme === "dark" ? "Light Mode" : "Dark Mode"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+          )}
+
+          {/* Style Selector Toggle */}
           {isGallery ? (
             <button
               onClick={toggleStyleMode}
-              className="font-condensed text-[11px] tracking-[0.2em] font-medium text-ink hover:text-mid-gray uppercase cursor-pointer flex items-center gap-1.5 border-2 border-ink px-3 py-1 bg-paper hover:bg-ink hover:text-paper transition-all duration-300"
+              className="font-condensed text-[11px] tracking-[0.2em] font-medium text-ink hover:text-mid-gray uppercase cursor-pointer border-2 border-ink px-3 py-1 bg-paper hover:bg-ink hover:text-paper transition-all duration-300"
             >
               <span>FROSTED MODE</span>
             </button>

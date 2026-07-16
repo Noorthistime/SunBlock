@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { WeatherLayerPoint, LayerType } from "../types/weather";
-import { StyleModeType } from "../hooks/useWeather";
+import { StyleModeType, ThemeType } from "../hooks/useWeather";
 
 interface WeatherMapProps {
   lat: number;
@@ -11,6 +11,7 @@ interface WeatherMapProps {
   activeLayer: LayerType;
   layers: WeatherLayerPoint[];
   styleMode: StyleModeType;
+  theme: ThemeType;
   onMarkerClick: (lat: number, lon: number, name: string) => void;
 }
 
@@ -20,6 +21,7 @@ export default function WeatherMap({
   activeLayer,
   layers,
   styleMode,
+  theme,
   onMarkerClick,
 }: WeatherMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -27,8 +29,9 @@ export default function WeatherMap({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
 
-  // CartoDB Positron tiles (perfect light-mode clean gray/white tiles)
-  const mapTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  // CartoDB tiles (Positron for light, Dark Matter for dark)
+  const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
   const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
   const isGallery = styleMode === "gallery";
@@ -48,7 +51,7 @@ export default function WeatherMap({
     mapRef.current = map;
 
     // Add Tile Layer
-    const tileLayer = L.tileLayer(mapTiles, {
+    const tileLayer = L.tileLayer(theme === "dark" ? darkTiles : lightTiles, {
       attribution,
       maxZoom: 19,
     }).addTo(map);
@@ -82,7 +85,13 @@ export default function WeatherMap({
     }
   }, [lat, lon]);
 
-  // 3. Render markers for the active weather layer
+  // 3. Switch tiles when theme changes
+  useEffect(() => {
+    if (!tileLayerRef.current) return;
+    tileLayerRef.current.setUrl(theme === "dark" ? darkTiles : lightTiles);
+  }, [theme]);
+
+  // 4. Render markers for the active weather layer
   useEffect(() => {
     if (!mapRef.current || !layers || layers.length === 0) return;
 
@@ -167,9 +176,9 @@ export default function WeatherMap({
           onMarkerClick(point.lat, point.lon, point.name);
         });
 
-      // Bind simple popup
+      // Bind simple tooltip
       marker.bindTooltip(`
-        <div class="p-1 font-sans text-xs">
+        <div class="p-1 font-sans text-xs bg-paper text-ink">
           <strong>Grid Area: ${point.name}</strong><br/>
           Temp: ${point.temperature}°C<br/>
           Precip: ${point.rain} mm<br/>

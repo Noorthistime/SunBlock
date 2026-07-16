@@ -8,6 +8,7 @@ import {
 } from "../types/weather";
 
 export type StyleModeType = "frosted" | "gallery";
+export type ThemeType = "light" | "dark";
 
 export function useWeather() {
   // Default coordinates: London, UK
@@ -30,8 +31,9 @@ export function useWeather() {
   const [searchResults, setSearchResults] = useState<LocationResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Layout style mode (frosted = Frosted Paper / shadcn, gallery = Gallery Grid / Mono X7 Brutalist)
+  // Layout style mode & theme variables
   const [styleMode, setStyleMode] = useState<StyleModeType>("frosted");
+  const [theme, setTheme] = useState<ThemeType>("light");
   const [activeLayer, setActiveLayer] = useState<LayerType>("temp");
 
   // Offline detection
@@ -54,11 +56,12 @@ export function useWeather() {
     };
   }, []);
 
-  // Sync and load style mode from localStorage
+  // Sync and load style mode & theme from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const savedStyle = localStorage.getItem("sunblock-style-mode") as StyleModeType;
+    const savedTheme = localStorage.getItem("sunblock-theme") as ThemeType;
 
     if (savedStyle && (savedStyle === "frosted" || savedStyle === "gallery")) {
       setStyleMode(savedStyle);
@@ -66,6 +69,16 @@ export function useWeather() {
     } else {
       setStyleMode("frosted");
       document.documentElement.setAttribute("data-style", "frosted");
+    }
+
+    if (savedTheme && (savedTheme === "light" || savedTheme === "dark")) {
+      setTheme(savedTheme);
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    } else {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const initialTheme = prefersDark ? "dark" : "light";
+      setTheme(initialTheme);
+      document.documentElement.setAttribute("data-theme", initialTheme);
     }
   }, []);
 
@@ -76,6 +89,16 @@ export function useWeather() {
       localStorage.setItem("sunblock-style-mode", nextStyle);
       document.documentElement.setAttribute("data-style", nextStyle);
       return nextStyle;
+    });
+  }, []);
+
+  // Toggle Theme helper
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const nextTheme = prev === "light" ? "dark" : "light";
+      localStorage.setItem("sunblock-theme", nextTheme);
+      document.documentElement.setAttribute("data-theme", nextTheme);
+      return nextTheme;
     });
   }, []);
 
@@ -191,6 +214,8 @@ export function useWeather() {
     isSearching,
     styleMode,
     toggleStyleMode,
+    theme,
+    toggleTheme,
     activeLayer,
     setActiveLayer,
     isOffline,

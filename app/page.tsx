@@ -6,7 +6,7 @@ import WeatherCard from "../components/WeatherCard";
 import MapWrapper from "../components/MapWrapper";
 import ForecastOverlay from "../components/ForecastOverlay";
 import DottedProgress from "../components/DottedProgress";
-import { AlertTriangle, RefreshCw, Wifi } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Dashboard() {
@@ -23,6 +23,8 @@ export default function Dashboard() {
     isSearching,
     styleMode,
     toggleStyleMode,
+    theme,
+    toggleTheme,
     activeLayer,
     setActiveLayer,
     isOffline,
@@ -79,6 +81,8 @@ export default function Dashboard() {
       <Header
         styleMode={styleMode}
         toggleStyleMode={toggleStyleMode}
+        theme={theme}
+        toggleTheme={toggleTheme}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         searchResults={searchResults}
@@ -204,6 +208,7 @@ export default function Dashboard() {
                       activeLayer={activeLayer}
                       layers={weatherData.layers}
                       styleMode={styleMode}
+                      theme={theme}
                       onMarkerClick={handleMarkerClick}
                     />
                   </div>
@@ -253,7 +258,7 @@ export default function Dashboard() {
             <span>© SUNBLOCK INC. 2026</span>
             <div className="flex gap-6">
               <a href="#" className="hover:text-ink">Radar Details</a>
-              <a href="#" className="hover:text-ink">Stations</a>
+              <a href="#" className="hover:text-ink"><span>Stations</span></a>
               <a href="#" className="hover:text-ink">API Spec</a>
             </div>
           </div>
