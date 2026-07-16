@@ -78,7 +78,7 @@ export default function Header({
         {/* Branding */}
         <div className="flex items-center gap-3">
           {/* Animated Eclipse Logo */}
-          <div className="relative flex h-8 w-8 items-center justify-center select-none shrink-0">
+          <div className="relative flex h-10 w-10 items-center justify-center select-none shrink-0">
             {/* Ambient Corona Shadow */}
             <div className="absolute inset-0 rounded-full bg-ink opacity-10 blur-[4px] animate-corona-glow" />
             
@@ -116,8 +116,8 @@ export default function Header({
           <span 
             className={`${
               isGallery 
-                ? "font-sans text-xl font-light tracking-[-0.02em] text-ink uppercase animate-title-breathe-gallery" 
-                : "font-sans text-lg md:text-xl font-bold tracking-tight text-ink animate-title-breathe"
+                ? "font-sans text-xl font-light tracking-[-0.02em] text-ink uppercase" 
+                : "font-sans text-lg md:text-xl font-bold tracking-tight text-ink"
             }`}
           >
             SUN<span className="text-mid-gray font-light">BLOCK</span>

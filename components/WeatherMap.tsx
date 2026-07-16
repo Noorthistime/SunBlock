@@ -103,10 +103,11 @@ export default function WeatherMap({
   // 2. Synchronize center when lat/lon updates
   useEffect(() => {
     if (!mapRef.current) return;
-    const currentCenter = mapRef.current.getCenter();
     const targetCenter = L.latLng(lat, lon);
+    const bounds = mapRef.current.getBounds();
 
-    if (currentCenter.distanceTo(targetCenter) > 500) {
+    // Only pan/fly if the target coordinate is not already within the map's visible viewport bounds
+    if (!bounds.contains(targetCenter)) {
       mapRef.current.flyTo(targetCenter, mapRef.current.getZoom(), {
         animate: true,
         duration: 1.5,
