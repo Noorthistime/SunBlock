@@ -64,13 +64,13 @@ export default function Header({
       className={`${
         isGallery 
           ? "border-b-2 border-hairline bg-paper w-full z-50 sticky top-0" 
-          : "sticky top-4 z-50 mx-auto w-full max-w-7xl px-4 md:px-8"
+          : "sticky top-4 z-50 mx-auto w-full px-4 md:px-6"
       }`}
     >
       <div 
         className={`${
           isGallery 
-            ? "flex items-center justify-between py-4 px-6 max-w-[1280px] mx-auto" 
+            ? "flex items-center justify-between py-4 px-6 w-full mx-auto" 
             : "glass-capsule flex items-center justify-between p-2 pl-4 md:p-3 md:pl-6 border border-hairline shadow-main bg-paper/70 backdrop-blur-md"
         }`}
       >
