@@ -1,0 +1,21 @@
+{
+  "name": "SunBlock Weather",
+  "short_name": "SunBlock",
+  "description": "Premium weather dashboard web application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ff2d55",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1592210454359-9043f067919b?w=192&auto=format&fit=crop&q=80",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1592210454359-9043f067919b?w=512&auto=format&fit=crop&q=80",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
