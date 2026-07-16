@@ -13,6 +13,7 @@ interface WeatherMapProps {
   styleMode: StyleModeType;
   theme: ThemeType;
   onMarkerClick: (lat: number, lon: number, name: string) => void;
+  onMapClick: (lat: number, lon: number) => void;
 }
 
 export default function WeatherMap({
@@ -23,11 +24,18 @@ export default function WeatherMap({
   styleMode,
   theme,
   onMarkerClick,
+  onMapClick,
 }: WeatherMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+
+  // Keep a ref to onMapClick to avoid stale closures in Leaflet event listeners
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   // CartoDB tiles (Positron for light, Dark Matter for dark)
   const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -50,6 +58,13 @@ export default function WeatherMap({
 
     mapRef.current = map;
 
+    // Bind map click handler
+    map.on("click", (e: L.LeafletMouseEvent) => {
+      const { lat: clickLat, lng: clickLng } = e.latlng;
+      // Trigger the reference callback
+      onMapClickRef.current(clickLat, clickLng);
+    });
+
     // Add Tile Layer
     const tileLayer = L.tileLayer(theme === "dark" ? darkTiles : lightTiles, {
       attribution,
@@ -65,6 +80,7 @@ export default function WeatherMap({
 
     return () => {
       if (mapRef.current) {
+        mapRef.current.off("click");
         mapRef.current.remove();
         mapRef.current = null;
       }

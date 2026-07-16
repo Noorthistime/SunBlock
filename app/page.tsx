@@ -42,6 +42,54 @@ export default function Dashboard() {
     });
   };
 
+  // Handler for custom coordinate clicks on the map itself
+  const handleMapClick = async (lat: number, lon: number) => {
+    // Set immediate loading coordinate text to ensure immediate feedback
+    const coordName = `${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+    setCurrentLocation({
+      name: `Position (${coordName})`,
+      lat,
+      lon,
+    });
+
+    // Run background reverse geocoding to resolve a friendly name via Nominatim
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`,
+        {
+          headers: {
+            "User-Agent": "SunBlockWeatherApp/1.0"
+          }
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const address = data.address;
+        if (address) {
+          const city = address.city || address.town || address.village || address.suburb || address.county || "";
+          const country = address.country || "";
+          
+          let friendlyName = "";
+          if (city && country) {
+            friendlyName = `${city}, ${country}`;
+          } else if (data.display_name) {
+            friendlyName = data.display_name.split(",").slice(0, 2).join(",").trim();
+          } else {
+            friendlyName = data.name || coordName;
+          }
+          
+          setCurrentLocation({
+            name: friendlyName,
+            lat,
+            lon,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Reverse geocoding lookup failed:", err);
+    }
+  };
+
   // Weather Sidebar Loading Skeleton
   const renderSidebarSkeleton = () => (
     <div className="flex flex-col gap-6 w-full">
@@ -202,6 +250,7 @@ export default function Dashboard() {
                       styleMode={styleMode}
                       theme={theme}
                       onMarkerClick={handleMarkerClick}
+                      onMapClick={handleMapClick}
                     />
                   </div>
                 ) : (
@@ -254,7 +303,7 @@ export default function Dashboard() {
       {/* Museum-style Footer Bar for Gallery Mode / Clean subtle footer for Frosted */}
       {isGallery && (
         <footer className="w-full border-t-2 border-hairline bg-paper mt-12">
-          <div className="w-full px-6 py-5 flex items-center justify-between text-[10px] font-condensed tracking-[0.2em] font-medium text-mid-gray uppercase">
+          <div className="max-w-[1280px] mx-auto px-6 py-5 flex items-center justify-between text-[10px] font-condensed tracking-[0.2em] font-medium text-mid-gray uppercase">
             <span>© SUNBLOCK INC. 2026</span>
             <div className="flex gap-6">
               <a href="#" className="hover:text-ink">Radar Details</a>
