@@ -26,6 +26,16 @@
   --color-ember: #e7000b; /* Ember supporting accent for error states */
 }
 
+[data-theme="light"] {
+  --brand-glow-color: rgba(0, 0, 0, 0.12);
+  --brand-glow-secondary: rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] {
+  --brand-glow-color: rgba(255, 255, 255, 0.35);
+  --brand-glow-secondary: rgba(255, 255, 255, 0.15);
+}
+
 /* 1. Frosted Paper Mode - LIGHT */
 [data-style="frosted"][data-theme="light"] {
   --color-canvas: #f5f5f5;
@@ -305,6 +315,45 @@ body {
   }
 }
 
+@keyframes corona-glow-sync-pulse {
+  /* Sun is shining completely */
+  0%, 25% {
+    opacity: 0.22;
+    transform: scale(1.12);
+    filter: blur(4px) drop-shadow(0 0 8px currentColor);
+  }
+  /* Eclipse slides in and blocks */
+  45%, 80% {
+    opacity: 0.06;
+    transform: scale(0.95);
+    filter: blur(2px);
+  }
+  /* Sun emerges again */
+  100% {
+    opacity: 0.22;
+    transform: scale(1.12);
+    filter: blur(4px) drop-shadow(0 0 8px currentColor);
+  }
+}
+
+@keyframes brand-shine-cycle {
+  /* Sun is shining completely: light shines towards text (text-shadow glow active) */
+  0%, 25% {
+    text-shadow: 0 0 14px var(--brand-glow-color), 3px 0 9px var(--brand-glow-secondary);
+    opacity: 1;
+  }
+  /* Eclipse blocks the sun: text light shines dulls / matches normal inline text */
+  45%, 80% {
+    text-shadow: none;
+    opacity: 0.65;
+  }
+  /* Sun emerges again: text shines */
+  100% {
+    text-shadow: 0 0 14px var(--brand-glow-color), 3px 0 9px var(--brand-glow-secondary);
+    opacity: 1;
+  }
+}
+
 @keyframes corona-spin {
   0% {
     transform: rotate(0deg);
@@ -314,12 +363,18 @@ body {
   }
 }
 
-@keyframes moon-slide-move {
-  0%, 100% {
-    transform: translate(0px, 0px);
+@keyframes moon-eclipse-move {
+  /* Sun is shining completely: Moon is far away (off-screen top-left) */
+  0%, 25% {
+    transform: translate(-70px, -70px) rotate(-45deg);
   }
-  50% {
-    transform: translate(11px, 11px);
+  /* Moon slides in rotating and blocks the sun completely */
+  45%, 80% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  /* Moon slides out to bottom-right */
+  100% {
+    transform: translate(70px, 70px) rotate(45deg);
   }
 }
 
@@ -327,11 +382,20 @@ body {
   animation: corona-glow-pulse 6s infinite ease-in-out;
 }
 
+.animate-corona-glow-sync {
+  animation: corona-glow-sync-pulse 10s infinite ease-in-out;
+}
+
 .animate-corona-rotate {
   animation: corona-spin 25s infinite linear;
   transform-origin: center;
 }
 
-.animate-moon-slide {
-  animation: moon-slide-move 14s infinite ease-in-out;
+.animate-moon-eclipse {
+  animation: moon-eclipse-move 10s infinite ease-in-out;
+}
+
+.animate-brand-shine {
+  animation: brand-shine-cycle 10s infinite ease-in-out;
+  transition: text-shadow 0.5s ease-in-out, opacity 0.5s ease-in-out, color 0.5s ease-in-out;
 }

@@ -66,11 +66,26 @@ export default function WeatherMap({
 
     mapRef.current = map;
 
-    // Bind map click handler
+    // Bind map click handler with double-click protection (clears timeout on double click zoom-in)
+    let clickTimeout: NodeJS.Timeout | null = null;
+
     map.on("click", (e: L.LeafletMouseEvent) => {
-      const { lat: clickLat, lng: clickLng } = e.latlng;
-      // Trigger the reference callback
-      onMapClickRef.current(clickLat, clickLng);
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
+      
+      clickTimeout = setTimeout(() => {
+        const { lat: clickLat, lng: clickLng } = e.latlng;
+        onMapClickRef.current(clickLat, clickLng);
+        clickTimeout = null;
+      }, 250);
+    });
+
+    map.on("dblclick", () => {
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
     });
 
     // Add Tile Layer
@@ -92,8 +107,12 @@ export default function WeatherMap({
     }, 100);
 
     return () => {
+      if (clickTimeout) {
+        clearTimeout(clickTimeout);
+      }
       if (mapRef.current) {
         mapRef.current.off("click");
+        mapRef.current.off("dblclick");
         mapRef.current.remove();
         mapRef.current = null;
       }

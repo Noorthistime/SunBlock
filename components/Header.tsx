@@ -79,7 +79,7 @@ export default function Header({
           {/* Animated Eclipse Logo */}
           <div className="relative flex h-10 w-10 items-center justify-center select-none shrink-0">
             {/* Ambient Corona Shadow */}
-            <div className="absolute inset-0 rounded-full bg-ink opacity-10 blur-[4px] animate-corona-glow" />
+            <div className="absolute inset-0 rounded-full bg-ink opacity-10 blur-[4px] animate-corona-glow-sync" />
             
             <svg viewBox="0 0 100 100" className="h-full w-full relative z-10">
               {/* Pulsing Sun Corona Ring */}
@@ -103,17 +103,17 @@ export default function Header({
               />
               {/* Blocking Moon Core */}
               <circle
-                cx="44"
-                cy="44"
-                r="25"
+                cx="50"
+                cy="50"
+                r="25.5"
                 fill="var(--color-paper)"
-                className="animate-moon-slide"
+                className="animate-moon-eclipse"
               />
             </svg>
           </div>
 
           <span 
-            className={`${
+            className={`animate-brand-shine ${
               isGallery 
                 ? "font-sans text-xl font-light tracking-[-0.02em] text-ink uppercase" 
                 : "font-sans text-lg md:text-xl font-bold tracking-tight text-ink"
