@@ -161,6 +161,8 @@ export default function WeatherMap({
   // 2. Synchronize center when lat/lon updates
   useEffect(() => {
     if (!mapRef.current) return;
+    // Guard against NaN coordinates (e.g. when Globe view fires before coords resolve)
+    if (!isFinite(lat) || !isFinite(lon)) return;
     const targetCenter = L.latLng(lat, lon);
     const bounds = mapRef.current.getBounds();
 
@@ -267,8 +269,9 @@ export default function WeatherMap({
     });
   }, [layers, activeLayer, isGallery, onMarkerClick]);
 
-  // Click handler on 3D Globe
+  // Click handler on 3D Globe — guard against NaN (e.g. clicking on empty space)
   const handleGlobeClick = (click: { lat: number; lng: number }) => {
+    if (!isFinite(click.lat) || !isFinite(click.lng)) return;
     onMapClickRef.current(click.lat, click.lng);
   };
 
