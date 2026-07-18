@@ -121,11 +121,6 @@ export default function Header({
           >
             SUN<span className="text-mid-gray font-light">BLOCK</span>
           </span>
-          {isGallery && (
-            <span className="text-[10px] font-condensed tracking-[0.2em] text-mid-gray uppercase border border-hairline px-2 py-0.5 ml-1 font-medium">
-              MONO-X7
-            </span>
-          )}
         </div>
 
         {/* Search Bar Capsule */}
