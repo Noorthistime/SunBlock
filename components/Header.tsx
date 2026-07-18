@@ -248,14 +248,14 @@ export default function Header({
               onClick={toggleStyleMode}
               className="font-condensed text-[11px] tracking-[0.2em] font-medium text-ink hover:text-mid-gray uppercase cursor-pointer border-2 border-ink px-3 py-1 bg-paper hover:bg-ink hover:text-paper transition-all duration-300"
             >
-              <span>FROSTED MODE</span>
+              <span>FROSTED</span>
             </button>
           ) : (
             <button
               onClick={toggleStyleMode}
               className="mono-btn-outline px-4 py-1.5 text-xs font-semibold uppercase tracking-wider cursor-pointer hover:bg-ink hover:text-paper transition-all duration-300"
             >
-              <span>GALLERY GRID</span>
+              <span>MONO</span>
             </button>
           )}
         </div>
