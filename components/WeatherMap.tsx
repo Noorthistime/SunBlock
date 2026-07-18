@@ -1,12 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
-import "maplibre-gl/dist/maplibre-gl.css";
-import Globe from "react-globe.gl";
+import dynamic from "next/dynamic";
 import { WeatherLayerPoint, LayerType } from "../types/weather";
 import { StyleModeType, ThemeType } from "../hooks/useWeather";
 import { Plus, Minus, Maximize2, Minimize2, Globe as GlobeIcon, Map as MapIcon } from "lucide-react";
+
+// Lazy-load GlobePanel — deck.gl (~450 KB) is only downloaded when Globe mode opens
+const GlobePanel = dynamic(() => import("./GlobePanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center" style={{ background: "#000814" }}>
+      <span className="text-white/50 text-[10px] tracking-[0.2em] uppercase animate-pulse">
+        Loading Globe…
+      </span>
+    </div>
+  ),
+});
 
 interface WeatherMapProps {
   lat: number;
@@ -23,98 +34,12 @@ function validCoord(v: number) {
   return typeof v === "number" && isFinite(v) && !isNaN(v);
 }
 
-// ── GlobeView — correct React JSX component from react-globe.gl ───────────────
-interface GlobeViewProps {
-  lat: number;
-  lon: number;
-  theme: ThemeType;
-  onLocationClick: (lat: number, lon: number) => void;
-}
-
-function GlobeView({ lat, lon, theme, onLocationClick }: GlobeViewProps) {
-  const globeEl    = useRef<any>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const onClickRef = useRef(onLocationClick);
-  const [dims, setDims] = useState({ w: 800, h: 600 });
-
-  useEffect(() => { onClickRef.current = onLocationClick; }, [onLocationClick]);
-
-  // Measure wrapper so the canvas fills the container exactly
-  useEffect(() => {
-    if (!wrapperRef.current) return;
-    const ro = new ResizeObserver(entries => {
-      for (const e of entries) {
-        setDims({
-          w: Math.round(e.contentRect.width)  || 800,
-          h: Math.round(e.contentRect.height) || 600,
-        });
-      }
-    });
-    ro.observe(wrapperRef.current);
-    setDims({
-      w: wrapperRef.current.clientWidth  || 800,
-      h: wrapperRef.current.clientHeight || 600,
-    });
-    return () => ro.disconnect();
-  }, []);
-
-  // Pan globe to selected coords
-  useEffect(() => {
-    if (!globeEl.current) return;
-    const pLat = validCoord(lat) ? lat : 19.076;
-    const pLon = validCoord(lon) ? lon : 72.8777;
-    globeEl.current.pointOfView({ lat: pLat, lng: pLon, altitude: 2.0 }, 800);
-  }, [lat, lon]);
-
-  const handleClick = useCallback((coords: any) => {
-    if (!coords) return;
-    const { lat: cLat, lng: cLng } = coords;
-    if (validCoord(cLat) && validCoord(cLng)) onClickRef.current(cLat, cLng);
-  }, []);
-
-  const points = validCoord(lat) && validCoord(lon) ? [{ lat, lng: lon }] : [];
-
-  return (
-    <div
-      ref={wrapperRef}
-      className="w-full h-full"
-      style={{ background: theme === "dark" ? "#000010" : "#0a1628", cursor: "crosshair" }}
-    >
-      <Globe
-        ref={globeEl}
-        width={dims.w}
-        height={dims.h}
-        globeImageUrl={
-          theme === "dark"
-            ? "//unpkg.com/three-globe/example/img/earth-night.jpg"
-            : "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-        }
-        backgroundColor="rgba(0,0,0,0)"
-        showGraticules={true}
-        showAtmosphere={true}
-        atmosphereColor={theme === "dark" ? "#1e3a5f" : "#93c5fd"}
-        atmosphereAltitude={0.2}
-        onGlobeClick={handleClick}
-        pointsData={points}
-        pointLat={(d: any) => d.lat}
-        pointLng={(d: any) => d.lng}
-        pointColor={() => (theme === "dark" ? "#ffffff" : "#111111")}
-        pointRadius={0.4}
-        pointAltitude={0.015}
-        pointLabel={() => "Selected Location"}
-      />
-    </div>
-  );
-}
-// ─────────────────────────────────────────────────────────────────────────────
-
-
 export default function WeatherMap({
   lat, lon, activeLayer, layers, styleMode, theme, onMarkerClick, onMapClick,
 }: WeatherMapProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [viewMode,   setViewMode]   = useState<"map" | "globe">("map");
-  const [leafletKey, setLeafletKey] = useState(0); // bump to remount Leaflet fresh
+  const [leafletKey, setLeafletKey] = useState(0); // bump = fresh Leaflet mount
 
   const containerRef    = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -142,7 +67,7 @@ export default function WeatherMap({
   const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
   const isGallery   = styleMode === "gallery";
 
-  // ── Leaflet init — reruns whenever leafletKey changes ─────────────────────
+  // ── Leaflet init — reruns on leafletKey bump ────────────────────────────────
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
@@ -168,7 +93,9 @@ export default function WeatherMap({
         clickTimeout = null;
       }, 250);
     });
-    map.on("dblclick", () => { if (clickTimeout) { clearTimeout(clickTimeout); clickTimeout = null; } });
+    map.on("dblclick", () => {
+      if (clickTimeout) { clearTimeout(clickTimeout); clickTimeout = null; }
+    });
 
     const tiles = L.tileLayer(theme === "dark" ? darkTiles : lightTiles, {
       attribution, maxZoom: 19, noWrap: true, bounds: [[-85, -180], [85, 180]],
@@ -179,17 +106,16 @@ export default function WeatherMap({
 
     return () => {
       if (clickTimeout) clearTimeout(clickTimeout);
-      map.off();
-      map.remove();
+      map.off(); map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leafletKey]);
 
-  // ── Fly to coord — ONLY when map mode is active ───────────────────────────
+  // ── Fly to coord — only when map mode is active ────────────────────────────
   useEffect(() => {
-    if (viewMode !== "map") return; // ← never run while globe is showing
+    if (viewMode !== "map") return;           // never touch Leaflet in globe mode
     if (!mapRef.current) return;
     if (!validCoord(lat) || !validCoord(lon)) return;
     try {
@@ -201,13 +127,13 @@ export default function WeatherMap({
     } catch (_) { /* swallow rare Leaflet edge-case errors */ }
   }, [lat, lon, viewMode]);
 
-  // ── Tile theme swap ───────────────────────────────────────────────────────
+  // ── Tile theme swap ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!tileLayerRef.current) return;
     tileLayerRef.current.setUrl(theme === "dark" ? darkTiles : lightTiles);
   }, [theme]);
 
-  // ── Weather layer markers ─────────────────────────────────────────────────
+  // ── Weather layer markers ──────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
     markersRef.current.forEach(m => m.remove());
@@ -256,21 +182,26 @@ export default function WeatherMap({
       className={`${
         isExpanded
           ? "fixed inset-0 z-[9999] w-screen h-screen bg-canvas p-4 md:p-6"
-          : `relative w-full h-full overflow-hidden ${isGallery ? "border-2 border-hairline rounded-none" : "border border-hairline shadow-main rounded-[24px]"}`
+          : `relative w-full h-full overflow-hidden ${
+              isGallery ? "border-2 border-hairline rounded-none" : "border border-hairline shadow-main rounded-[24px]"
+            }`
       }`}
     >
       {/* ── Leaflet 2D Map ── */}
       {viewMode === "map" && (
-        <div key={leafletKey} ref={mapContainerRef} className="w-full h-full min-h-[400px] md:min-h-[500px] z-10" />
+        <div
+          key={leafletKey}
+          ref={mapContainerRef}
+          className="w-full h-full min-h-[400px] md:min-h-[500px] z-10"
+        />
       )}
 
-      {/* ── 3D Globe (react-globe.gl JSX component) ── */}
+      {/* ── deck.gl Globe (lazy-loaded, only in expanded mode) ── */}
       {viewMode === "globe" && isExpanded && (
         <div className="absolute inset-0 z-10 overflow-hidden rounded-[inherit]">
-          <GlobeView
+          <GlobePanel
             lat={lat}
             lon={lon}
-            theme={theme}
             onLocationClick={(cLat, cLon) => {
               if (validCoord(cLat) && validCoord(cLon)) onMapClick(cLat, cLon);
             }}
@@ -289,13 +220,14 @@ export default function WeatherMap({
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />
         <span>
           {viewMode === "globe"
-            ? "Globe View — Click to get weather"
+            ? "Globe View"
             : isGallery ? "GRID SECTOR MAP" : "Sector Grid Map"}
         </span>
       </div>
 
       {/* ── Controls ── */}
       <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-2">
+        {/* Zoom — only in 2D map, non-expanded */}
         {!isExpanded && viewMode === "map" && (
           <>
             <button onClick={() => mapRef.current?.zoomIn()}  title="Zoom In"  className={btnCls}><Plus  className="h-4 w-4" /></button>
@@ -303,6 +235,7 @@ export default function WeatherMap({
           </>
         )}
 
+        {/* Globe / Map toggle — expanded mode only */}
         {isExpanded && (
           <button
             onClick={() => viewMode === "map" ? setViewMode("globe") : switchToMap()}
@@ -313,6 +246,7 @@ export default function WeatherMap({
           </button>
         )}
 
+        {/* Expand / Collapse */}
         <button
           onClick={() => {
             const next = !isExpanded;
