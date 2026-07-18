@@ -11,15 +11,15 @@ export type StyleModeType = "frosted" | "gallery";
 export type ThemeType = "light" | "dark";
 
 export function useWeather() {
-  // Default coordinates: London, UK
+  // Default coordinates: Mumbai, Maharashtra
   const [currentLocation, setCurrentLocation] = useState<{
     name: string;
     lat: number;
     lon: number;
   }>({
-    name: "London, United Kingdom",
-    lat: 51.5074,
-    lon: -0.1278,
+    name: "Mumbai, Maharashtra",
+    lat: 19.0760,
+    lon: 72.8777,
   });
 
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);

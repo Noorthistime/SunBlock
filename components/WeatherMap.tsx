@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import { WeatherLayerPoint, LayerType } from "../types/weather";
 import { StyleModeType, ThemeType } from "../hooks/useWeather";
+import { Plus, Minus, Maximize2, Minimize2 } from "lucide-react";
 
 interface WeatherMapProps {
   lat: number;
@@ -26,6 +27,7 @@ export default function WeatherMap({
   onMarkerClick,
   onMapClick,
 }: WeatherMapProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
@@ -36,6 +38,15 @@ export default function WeatherMap({
   useEffect(() => {
     onMapClickRef.current = onMapClick;
   }, [onMapClick]);
+
+  // Trigger Leaflet size recalculation when expanded/collapsed
+  useEffect(() => {
+    if (mapRef.current) {
+      setTimeout(() => {
+        mapRef.current?.invalidateSize();
+      }, 250);
+    }
+  }, [isExpanded]);
 
   // CartoDB tiles (Positron for light, Dark Matter for dark)
   const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -53,7 +64,7 @@ export default function WeatherMap({
       zoom: 9,
       minZoom: 2,
       maxZoom: 18,
-      zoomControl: true,
+      zoomControl: false,
       scrollWheelZoom: true,
       fadeAnimation: true,
       attributionControl: false,
@@ -241,17 +252,21 @@ export default function WeatherMap({
 
   return (
     <div 
-      className={`relative w-full h-full overflow-hidden ${
-        isGallery 
-          ? "border-2 border-hairline rounded-none" 
-          : "border border-hairline shadow-main rounded-[24px]"
+      className={`${
+        isExpanded
+          ? "fixed inset-0 z-[9999] w-screen h-screen bg-canvas p-4 md:p-6"
+          : `relative w-full h-full overflow-hidden ${
+              isGallery 
+                ? "border-2 border-hairline rounded-none" 
+                : "border border-hairline shadow-main rounded-[24px]"
+            }`
       }`}
     >
       <div ref={mapContainerRef} className="w-full h-full min-h-[400px] md:min-h-[500px] z-10" />
       
       {/* Dynamic Overlay indicator */}
       <div 
-        className={`absolute top-4 left-4 z-20 pointer-events-none px-3 py-1 text-[10px] tracking-wider uppercase font-bold flex items-center gap-1.5 bg-paper ${
+        className={`absolute top-8 left-8 z-20 pointer-events-none px-3 py-1 text-[10px] tracking-wider uppercase font-bold flex items-center gap-1.5 bg-paper ${
           isGallery 
             ? "border-2 border-ink rounded-none font-condensed tracking-[0.25em]" 
             : "border border-hairline shadow-sm rounded-full bg-paper/85 backdrop-blur-md"
@@ -259,6 +274,52 @@ export default function WeatherMap({
       >
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />
         <span>{isGallery ? "GRID SECTOR MAP" : "Sector Grid Map"}</span>
+      </div>
+
+      {/* Custom Map Controls Overlay in Bottom Right */}
+      <div className="absolute bottom-8 right-8 z-20 flex flex-col gap-2">
+        {!isExpanded && (
+          <>
+            {/* Zoom In */}
+            <button
+              onClick={() => mapRef.current?.zoomIn()}
+              title="Zoom In"
+              className={
+                isGallery
+                  ? "h-10 w-10 flex items-center justify-center bg-paper border-2 border-hairline text-ink hover:bg-canvas font-bold cursor-pointer select-none"
+                  : "h-10 w-10 flex items-center justify-center rounded-full bg-paper/85 backdrop-blur-md border border-hairline shadow-sm text-ink hover:bg-canvas hover:text-ink/80 transition-all cursor-pointer select-none"
+              }
+            >
+              <Plus className="h-4.5 w-4.5" />
+            </button>
+
+            {/* Zoom Out */}
+            <button
+              onClick={() => mapRef.current?.zoomOut()}
+              title="Zoom Out"
+              className={
+                isGallery
+                  ? "h-10 w-10 flex items-center justify-center bg-paper border-2 border-hairline text-ink hover:bg-canvas font-bold cursor-pointer select-none"
+                  : "h-10 w-10 flex items-center justify-center rounded-full bg-paper/85 backdrop-blur-md border border-hairline shadow-sm text-ink hover:bg-canvas hover:text-ink/80 transition-all cursor-pointer select-none"
+              }
+            >
+              <Minus className="h-4.5 w-4.5" />
+            </button>
+          </>
+        )}
+
+        {/* Toggle Expand (Fullscreen) */}
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          title={isExpanded ? "Collapse Map" : "Expand Map"}
+          className={
+            isGallery
+              ? "h-10 w-10 flex items-center justify-center bg-paper border-2 border-hairline text-ink hover:bg-canvas font-bold cursor-pointer select-none"
+              : "h-10 w-10 flex items-center justify-center rounded-full bg-paper/85 backdrop-blur-md border border-hairline shadow-sm text-ink hover:bg-canvas hover:text-ink/80 transition-all cursor-pointer select-none"
+          }
+        >
+          {isExpanded ? <Minimize2 className="h-4.5 w-4.5" /> : <Maximize2 className="h-4.5 w-4.5" />}
+        </button>
       </div>
     </div>
   );
