@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
 import { WeatherLayerPoint, LayerType } from "../types/weather";
 import { StyleModeType, ThemeType } from "../hooks/useWeather";
-import { Plus, Minus, Maximize2, Minimize2 } from "lucide-react";
+import { Plus, Minus, Maximize2, Minimize2, Globe as GlobeIcon, Map as MapIcon } from "lucide-react";
+import Globe from "react-globe.gl";
 
 interface WeatherMapProps {
   lat: number;
@@ -28,10 +29,15 @@ export default function WeatherMap({
   onMapClick,
 }: WeatherMapProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [viewMode, setViewMode] = useState<"map" | "globe">("map");
+  const [dimensions, setDimensions] = useState({ width: 400, height: 400 });
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const globeRef = useRef<any>(null);
 
   // Keep a ref to onMapClick to avoid stale closures in Leaflet event listeners
   const onMapClickRef = useRef(onMapClick);
@@ -39,14 +45,36 @@ export default function WeatherMap({
     onMapClickRef.current = onMapClick;
   }, [onMapClick]);
 
-  // Trigger Leaflet size recalculation when expanded/collapsed
+  // Track parent container dimensions dynamically (for Leaflet and 3D Globe renders)
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  // Trigger Leaflet size recalculation when expanded/collapsed or view toggled
   useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
         mapRef.current?.invalidateSize();
       }, 250);
     }
-  }, [isExpanded]);
+  }, [isExpanded, viewMode]);
+
+  // Sync 3D Globe camera view to selected coordinates
+  useEffect(() => {
+    if (globeRef.current && viewMode === "globe") {
+      globeRef.current.pointOfView({ lat, lng: lon, altitude: 2.2 }, 1200);
+    }
+  }, [lat, lon, viewMode]);
 
   // CartoDB tiles (Positron for light, Dark Matter for dark)
   const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -151,62 +179,51 @@ export default function WeatherMap({
     tileLayerRef.current.setUrl(theme === "dark" ? darkTiles : lightTiles);
   }, [theme]);
 
-  // 4. Render markers for the active weather layer
+  // 4. Render and update custom layer weather indicators
   useEffect(() => {
-    if (!mapRef.current || !layers || layers.length === 0) return;
+    if (!mapRef.current) return;
 
-    // Clear old markers
-    markersRef.current.forEach((marker) => marker.remove());
+    // Clear existing markers
+    markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Create new markers
+    // Map weather codes/labels
     layers.forEach((point) => {
       let markerHtml = "";
-
       if (isGallery) {
         // Brutalist sharp square markers
         if (activeLayer === "temp") {
-          const tempVal = Math.round(point.temperature);
           markerHtml = `
-            <div class="flex items-center justify-center font-condensed font-bold text-xs h-9 w-9 bg-paper text-ink border-2 border-ink shadow-none rounded-none hover:bg-ink hover:text-paper transition-colors duration-150">
-              ${tempVal}°
+            <div class="flex items-center justify-center font-condensed text-[11px] font-bold h-8 w-8 bg-paper text-ink border-2 border-hairline hover:bg-canvas transition-colors duration-150">
+              ${Math.round(point.temperature)}°
             </div>
           `;
         } else if (activeLayer === "rain") {
-          const rainVal = point.rain;
           markerHtml = `
-            <div class="flex flex-col items-center justify-center font-condensed font-bold text-[8px] h-9 w-9 bg-paper text-ink border-2 border-ink shadow-none rounded-none hover:bg-ink hover:text-paper transition-colors duration-150">
-              <span class="leading-none">${rainVal}</span>
-              <span class="text-[6px] tracking-widest font-normal uppercase leading-none mt-0.5">MM</span>
+            <div class="flex items-center justify-center font-condensed text-[11px] font-bold h-8 w-8 bg-paper text-ink border-2 border-hairline hover:bg-canvas transition-colors duration-150">
+              ${point.rain}m
             </div>
           `;
         } else if (activeLayer === "wind") {
           const windVal = Math.round(point.windSpeed);
-          const rotation = point.windDirection;
           markerHtml = `
-            <div class="flex flex-col items-center justify-center font-condensed font-bold text-[8px] h-9 w-9 bg-paper text-ink border-2 border-ink shadow-none rounded-none hover:bg-ink hover:text-paper transition-colors duration-150">
-              <span class="leading-none">${windVal}K</span>
-              <svg style="transform: rotate(${rotation}deg); width: 6px; height: 6px; fill: currentColor;" viewBox="0 0 24 24" class="mt-1 transition-transform">
-                <path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" />
-              </svg>
+            <div class="flex items-center justify-center font-condensed text-[11px] font-bold h-8 w-8 bg-paper text-ink border-2 border-hairline hover:bg-canvas transition-colors duration-150">
+              ${windVal}k
             </div>
           `;
         }
       } else {
-        // Frosted capsule markers
+        // Frosted capsule markers (or Apple Neo rounded)
         if (activeLayer === "temp") {
-          const tempVal = Math.round(point.temperature);
           markerHtml = `
-            <div class="flex items-center justify-center font-sans font-bold text-xs h-8 w-8 bg-paper text-ink border border-hairline shadow-md rounded-full hover:border-ink/40 transition-all duration-200">
-              ${tempVal}°
+            <div class="flex items-center justify-center font-sans font-bold text-xs h-8.5 w-8.5 bg-paper text-ink border border-hairline shadow-md rounded-full hover:border-ink/40 transition-all duration-200">
+              ${Math.round(point.temperature)}°
             </div>
           `;
         } else if (activeLayer === "rain") {
-          const rainVal = point.rain;
           markerHtml = `
-            <div class="flex flex-col items-center justify-center font-sans font-bold text-[9px] h-8.5 w-8.5 bg-paper text-ink border border-hairline shadow-md rounded-full hover:border-ink/40 transition-all duration-200">
-              <span class="leading-none">${rainVal}</span>
-              <span class="text-[6px] text-mid-gray leading-none">mm</span>
+            <div class="flex items-center justify-center font-sans font-bold text-[9px] h-8.5 w-8.5 bg-paper text-ink border border-hairline shadow-md rounded-full hover:border-ink/40 transition-all duration-200">
+              ${point.rain} mm
             </div>
           `;
         } else if (activeLayer === "wind") {
@@ -250,8 +267,21 @@ export default function WeatherMap({
     });
   }, [layers, activeLayer, isGallery, onMarkerClick]);
 
+  // Click handler on 3D Globe
+  const handleGlobeClick = (click: { lat: number; lng: number }) => {
+    onMapClickRef.current(click.lat, click.lng);
+  };
+
+  // Selected Location marker for 3D Globe representation
+  const activeGlobePoint = [{
+    lat,
+    lng: lon,
+    text: "Selected Coordinate"
+  }];
+
   return (
     <div 
+      ref={containerRef}
       className={`${
         isExpanded
           ? "fixed inset-0 z-[9999] w-screen h-screen bg-canvas p-4 md:p-6"
@@ -262,7 +292,39 @@ export default function WeatherMap({
             }`
       }`}
     >
-      <div ref={mapContainerRef} className="w-full h-full min-h-[400px] md:min-h-[500px] z-10" />
+      {/* 2D Leaflet Map Canvas */}
+      <div 
+        ref={mapContainerRef} 
+        className={`w-full h-full min-h-[400px] md:min-h-[500px] z-10 ${
+          viewMode === "globe" ? "hidden" : "block"
+        }`} 
+      />
+
+      {/* 3D Globe WebGL Canvas */}
+      {viewMode === "globe" && (
+        <div className="w-full h-full z-10 flex items-center justify-center overflow-hidden bg-black/5 dark:bg-white/5 rounded-[inherit]">
+          <Globe
+            ref={globeRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            globeImageUrl={theme === "dark" ? "https://unpkg.com/three-globe/example/img/earth-night.jpg" : "https://unpkg.com/three-globe/example/img/earth-day.jpg"}
+            backgroundColor="rgba(0,0,0,0)"
+            onGlobeClick={handleGlobeClick}
+            showGraticules={true}
+            showAtmosphere={true}
+            atmosphereColor={theme === "dark" ? "#444444" : "#cccccc"}
+            atmosphereAltitude={0.15}
+            labelsData={activeGlobePoint}
+            labelLat={(d: any) => d.lat}
+            labelLng={(d: any) => d.lng}
+            labelText={(d: any) => d.text}
+            labelSize={1.6}
+            labelColor={() => theme === "dark" ? "#ffffff" : "#000000"}
+            labelDotRadius={0.8}
+            labelAltitude={0.015}
+          />
+        </div>
+      )}
       
       {/* Dynamic Overlay indicator */}
       <div 
@@ -273,12 +335,13 @@ export default function WeatherMap({
         }`}
       >
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />
-        <span>{isGallery ? "GRID SECTOR MAP" : "Sector Grid Map"}</span>
+        <span>{viewMode === "globe" ? "3D GLOBE OVERVIEW" : isGallery ? "GRID SECTOR MAP" : "Sector Grid Map"}</span>
       </div>
 
       {/* Custom Map Controls Overlay in Bottom Right */}
       <div className="absolute bottom-8 right-8 z-20 flex flex-col gap-2">
-        {!isExpanded && (
+        {/* Zoom Controls (hidden in Globe and hidden when not expanded depending on settings) */}
+        {!isExpanded && viewMode === "map" && (
           <>
             {/* Zoom In */}
             <button
@@ -308,9 +371,30 @@ export default function WeatherMap({
           </>
         )}
 
+        {/* Toggle Globe vs Map (Only visible in Expanded Mode) */}
+        {isExpanded && (
+          <button
+            onClick={() => setViewMode(viewMode === "map" ? "globe" : "map")}
+            title={viewMode === "map" ? "Switch to Globe View" : "Switch to Map View"}
+            className={
+              isGallery
+                ? "h-10 w-10 flex items-center justify-center bg-paper border-2 border-hairline text-ink hover:bg-canvas font-bold cursor-pointer select-none"
+                : "h-10 w-10 flex items-center justify-center rounded-full bg-paper/85 backdrop-blur-md border border-hairline shadow-sm text-ink hover:bg-canvas hover:text-ink/80 transition-all cursor-pointer select-none"
+            }
+          >
+            {viewMode === "map" ? <GlobeIcon className="h-4.5 w-4.5" /> : <MapIcon className="h-4.5 w-4.5" />}
+          </button>
+        )}
+
         {/* Toggle Expand (Fullscreen) */}
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => {
+            setIsExpanded(!isExpanded);
+            // Revert view mode to 2D Map on collapse
+            if (isExpanded) {
+              setViewMode("map");
+            }
+          }}
           title={isExpanded ? "Collapse Map" : "Expand Map"}
           className={
             isGallery
