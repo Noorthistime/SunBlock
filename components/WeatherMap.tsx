@@ -269,18 +269,19 @@ export default function WeatherMap({
     });
   }, [layers, activeLayer, isGallery, onMarkerClick]);
 
-  // Click handler on 3D Globe — guard against NaN (e.g. clicking on empty space)
-  const handleGlobeClick = (click: { lat: number; lng: number }) => {
-    if (!isFinite(click.lat) || !isFinite(click.lng)) return;
-    onMapClickRef.current(click.lat, click.lng);
+  // Click handler on 3D Globe surface — guard against NaN (atmosphere/space clicks)
+  const handleGlobeClick = (coords: { lat: number; lng: number }, _event: MouseEvent) => {
+    if (!coords || !isFinite(coords.lat) || !isFinite(coords.lng)) return;
+    onMapClickRef.current(coords.lat, coords.lng);
   };
 
-  // Selected Location marker for 3D Globe representation
-  const activeGlobePoint = [{
+  // Selected location point marker for the Globe
+  const activeGlobePoints = (isFinite(lat) && isFinite(lon)) ? [{
     lat,
     lng: lon,
-    text: "Selected Coordinate"
-  }];
+    label: "Selected Location",
+    color: theme === "dark" ? "#ffffff" : "#000000",
+  }] : [];
 
   return (
     <div 
@@ -295,7 +296,7 @@ export default function WeatherMap({
             }`
       }`}
     >
-      {/* 2D Leaflet Map Canvas */}
+      {/* 2D Leaflet Map Canvas — kept mounted (display:none) to preserve state */}
       <div 
         ref={mapContainerRef} 
         className={`w-full h-full min-h-[400px] md:min-h-[500px] z-10 ${
@@ -305,26 +306,36 @@ export default function WeatherMap({
 
       {/* 3D Globe WebGL Canvas */}
       {viewMode === "globe" && (
-        <div className="w-full h-full z-10 flex items-center justify-center overflow-hidden bg-black/5 dark:bg-white/5 rounded-[inherit]">
+        <div className="w-full h-full z-10 flex items-center justify-center overflow-hidden rounded-[inherit]"
+          style={{ background: theme === "dark" ? "#0a0a0a" : "#e8edf2" }}
+        >
           <Globe
             ref={globeRef}
             width={dimensions.width}
             height={dimensions.height}
-            globeImageUrl={theme === "dark" ? "https://unpkg.com/three-globe/example/img/earth-night.jpg" : "https://unpkg.com/three-globe/example/img/earth-day.jpg"}
+            globeImageUrl={
+              theme === "dark"
+                ? "https://unpkg.com/three-globe/example/img/earth-night.jpg"
+                : "https://unpkg.com/three-globe/example/img/earth-day.jpg"
+            }
             backgroundColor="rgba(0,0,0,0)"
             onGlobeClick={handleGlobeClick}
             showGraticules={true}
             showAtmosphere={true}
-            atmosphereColor={theme === "dark" ? "#444444" : "#cccccc"}
-            atmosphereAltitude={0.15}
-            labelsData={activeGlobePoint}
-            labelLat={(d: any) => d.lat}
-            labelLng={(d: any) => d.lng}
-            labelText={(d: any) => d.text}
-            labelSize={1.6}
-            labelColor={() => theme === "dark" ? "#ffffff" : "#000000"}
-            labelDotRadius={0.8}
-            labelAltitude={0.015}
+            atmosphereColor={theme === "dark" ? "#334155" : "#93c5fd"}
+            atmosphereAltitude={0.18}
+            pointsData={activeGlobePoints}
+            pointLat={(d: any) => d.lat}
+            pointLng={(d: any) => d.lng}
+            pointColor={(d: any) => d.color}
+            pointRadius={0.6}
+            pointAltitude={0.02}
+            pointLabel={(d: any) => `<div style="background:rgba(0,0,0,0.7);color:#fff;padding:4px 8px;border-radius:4px;font-size:12px;font-family:sans-serif">${d.label}</div>`}
+            onPointClick={(point: any) => {
+              if (isFinite(point.lat) && isFinite(point.lng)) {
+                onMapClickRef.current(point.lat, point.lng);
+              }
+            }}
           />
         </div>
       )}
