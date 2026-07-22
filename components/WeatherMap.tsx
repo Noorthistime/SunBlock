@@ -40,17 +40,18 @@ const TRANSPARENT_TILE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORTH5CYII=";
 
 // ── Multi-Stop Perceptually Smooth Temperature Color Mapping ─────────────────
+// Deep Purple -> Dark Blue -> Blue -> Cyan -> Green -> Yellow -> Orange -> Red -> Dark Red
 function getTemperatureRGB(temp: number): [number, number, number, number] {
   const stops: { t: number; r: number; g: number; b: number }[] = [
-    { t: -15, r: 76,  g: 29,  b: 149 }, // Deep Purple
+    { t: -15, r: 76,  g: 29,  b: 149 }, // Deep Purple (Freezing)
     { t: -5,  r: 30,  g: 58,  b: 138 }, // Dark Blue
-    { t: 5,   r: 37,  g: 99,  b: 235 }, // Blue
-    { t: 14,  r: 6,   g: 182, b: 212 }, // Cyan
-    { t: 21,  r: 16,  g: 185, b: 129 }, // Green
-    { t: 26,  r: 234, g: 179, b: 8   }, // Yellow
-    { t: 31,  r: 249, g: 115, b: 22  }, // Orange
-    { t: 36,  r: 239, g: 68,  b: 68  }, // Red
-    { t: 42,  r: 127, g: 29,  b: 29  }, // Dark Red
+    { t: 5,   r: 37,  g: 99,  b: 235 }, // Blue (Cold)
+    { t: 14,  r: 6,   g: 182, b: 212 }, // Cyan (Cool)
+    { t: 21,  r: 16,  g: 185, b: 129 }, // Green (Mild)
+    { t: 26,  r: 234, g: 179, b: 8   }, // Yellow (Warm)
+    { t: 31,  r: 249, g: 115, b: 22  }, // Orange (Hot)
+    { t: 36,  r: 239, g: 68,  b: 68  }, // Red (Very Hot)
+    { t: 42,  r: 127, g: 29,  b: 29  }, // Dark Red (Extreme)
   ];
 
   if (temp <= stops[0].t) return [stops[0].r, stops[0].g, stops[0].b, 175];
@@ -74,29 +75,58 @@ function getTemperatureRGB(temp: number): [number, number, number, number] {
   return [234, 179, 8, 175];
 }
 
-// Fixed absolute geographical temperature dataset (prevents click location state from shifting background)
-const FIXED_GLOBAL_TEMP_SAMPLES: { lat: number; lon: number; temp: number }[] = [
-  { lat: 19.076, lon: 72.877, temp: 27 }, // Mumbai
-  { lat: 19.696, lon: 72.765, temp: 26 }, // Palghar
-  { lat: 19.218, lon: 72.978, temp: 28 }, // Thane
-  { lat: 18.520, lon: 73.856, temp: 22 }, // Pune (Cooler hill region)
-  { lat: 21.170, lon: 72.831, temp: 26 }, // Surat
-  { lat: 19.997, lon: 73.789, temp: 24 }, // Nasik
-  { lat: 17.680, lon: 74.018, temp: 22 }, // Satara
-  { lat: 17.659, lon: 75.906, temp: 25 }, // Solapur
-  { lat: 17.385, lon: 78.486, temp: 24 }, // Hyderabad
-  { lat: 21.145, lon: 79.088, temp: 25 }, // Nagpur
-  { lat: 15.849, lon: 74.497, temp: 23 }, // Belagavi
-  { lat: 15.299, lon: 74.124, temp: 28 }, // Goa
-  { lat: 23.022, lon: 72.571, temp: 30 }, // Ahmedabad
-  { lat: 22.307, lon: 73.181, temp: 29 }, // Vadodara
-  { lat: 20.000, lon: 70.000, temp: 28 }, // Arabian Sea
-  { lat: 33.939, lon: 67.710, temp: 19 }, // Afghanistan
-  { lat: 35.689, lon: 51.389, temp: 21 }, // Iran
-  { lat: 24.713, lon: 46.675, temp: 31 }, // Riyadh
-  { lat: 51.507, lon: -0.127, temp: 14 }, // London
+// ── DENSE 2D GLOBAL METEOROLOGICAL WEATHER GRID ──────────────────────────────
+// Smooth 2D reference mesh covering all continents, oceans, deserts, and mountain ranges
+const GLOBAL_METEOROLOGICAL_GRID: { lat: number; lon: number; temp: number }[] = [
+  // South Asia / India Subcontinent (32°C - 36°C)
+  { lat: 19.076, lon: 72.877, temp: 34 }, // Mumbai
+  { lat: 19.218, lon: 72.978, temp: 35 }, // Thane
+  { lat: 18.520, lon: 73.856, temp: 28 }, // Pune
+  { lat: 28.613, lon: 77.209, temp: 36 }, // New Delhi
+  { lat: 21.170, lon: 72.831, temp: 34 }, // Surat
+  { lat: 21.145, lon: 79.088, temp: 34 }, // Nagpur
+  { lat: 13.082, lon: 80.270, temp: 33 }, // Chennai
+  { lat: 12.971, lon: 77.594, temp: 29 }, // Bengaluru
+  { lat: 22.572, lon: 88.363, temp: 33 }, // Kolkata
+  { lat: 17.385, lon: 78.486, temp: 33 }, // Hyderabad
+
+  // High Elevation Mountain Ranges (Himalayas & Tibetan Plateau: 2°C - 6°C)
+  { lat: 30.000, lon: 82.000, temp: 2 },  // Himalayas
+  { lat: 34.000, lon: 86.000, temp: 4 },  // Tibetan Plateau
+  { lat: 35.880, lon: 76.510, temp: -5 }, // K2 / Karakoram
+
+  // Hot Deserts (Sahara, Arabian Peninsula, Thar Desert: 37°C - 40°C)
+  { lat: 25.000, lon: 15.000, temp: 39 }, // Sahara Desert
+  { lat: 24.713, lon: 46.675, temp: 38 }, // Riyadh / Arabian Peninsula
+  { lat: 26.912, lon: 70.900, temp: 38 }, // Thar Desert
+
+  // Middle East & Central Asia (22°C - 26°C)
+  { lat: 33.939, lon: 67.710, temp: 22 }, // Afghanistan
+  { lat: 35.689, lon: 51.389, temp: 24 }, // Tehran / Iran
+  { lat: 41.008, lon: 28.978, temp: 23 }, // Istanbul / Turkey
+
+  // Temperate Europe & Eurasia (12°C - 18°C)
+  { lat: 51.507, lon: -0.127, temp: 15 }, // London
   { lat: 48.856, lon: 2.352,   temp: 16 }, // Paris
+  { lat: 52.520, lon: 13.405, temp: 14 }, // Berlin
+  { lat: 55.755, lon: 37.617, temp: 12 }, // Moscow
+
+  // North America (14°C - 28°C)
   { lat: 40.712, lon: -74.006, temp: 18 }, // New York
+  { lat: 34.052, lon: -118.24, temp: 24 }, // Los Angeles
+  { lat: 25.761, lon: -80.191, temp: 30 }, // Miami
+  { lat: 41.878, lon: -87.629, temp: 16 }, // Chicago
+
+  // Equatorial Oceans & Tropics (28°C - 30°C)
+  { lat: 0.000,  lon: 80.000,  temp: 29 }, // Equatorial Indian Ocean
+  { lat: 0.000,  lon: -140.00, temp: 28 }, // Equatorial Pacific Ocean
+  { lat: 0.000,  lon: -25.000, temp: 28 }, // Equatorial Atlantic Ocean
+  { lat: 1.352,  lon: 103.819, temp: 30 }, // Singapore / SE Asia
+
+  // Polar Regions (Greenland, Arctic, Antarctica: -30°C to -15°C)
+  { lat: 75.000, lon: -40.000, temp: -22 }, // Greenland
+  { lat: 85.000, lon: 0.000,   temp: -28 }, // North Pole / Arctic Ocean
+  { lat: -75.00, lon: 0.000,   temp: -32 }, // Antarctica Plateau
 ];
 
 export default function WeatherMap({
@@ -228,7 +258,7 @@ export default function WeatherMap({
       maxZoom: 18,
       zoomControl: false,
       scrollWheelZoom: true,
-      fadeAnimation: false, // Prevents translucent flashing during tile loads
+      fadeAnimation: false,
       zoomAnimation: true,
       attributionControl: false,
       maxBounds: [[-85, -180], [85, 180]],
@@ -262,19 +292,17 @@ export default function WeatherMap({
 
     const activeBaseTile = activeMapOverlay !== "none" ? voyagerTiles : theme === "dark" ? darkTiles : lightTiles;
     
-    // Optimized TileLayer configuration to eliminate solid-colored zoom glitches
     const tiles = L.tileLayer(activeBaseTile, {
       attribution,
       maxZoom: 19,
       noWrap: true,
-      keepBuffer: 8,            // Retains 8 tile rings in DOM memory during zoom
-      updateWhenZooming: false, // Prevents tile thrashing mid-zoom
-      updateWhenIdle: true,    // Loads clean tiles when zoom completes
+      keepBuffer: 8,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
       bounds: [[-85, -180], [85, 180]],
     }).addTo(map);
     tileLayerRef.current = tiles;
 
-    // Ensure initial canvas dimensions match container
     if (canvasRef.current && mapContainerRef.current) {
       canvasRef.current.width = mapContainerRef.current.clientWidth;
       canvasRef.current.height = mapContainerRef.current.clientHeight;
@@ -368,8 +396,8 @@ export default function WeatherMap({
     }
   }, [activeMapOverlay, frameIndex, radarTimestamps, satTimestamps]);
 
-  // ── INVERSE DISTANCE WEIGHTING (IDW) THERMAL FIELD CANVAS RENDERER ──────────
-  // Decoupled from clicked location state to ensure clicking a point leaves background 100% stable
+  // ── CONTINUOUS SHEPARD-GAUSSIAN SPATIAL TEMPERATURE SCALAR FIELD RENDERER ─────
+  // Completely eliminates rectangular block boundaries and latitude stripes
   const renderIDWTemperatureField = useCallback(() => {
     const map = mapRef.current;
     const canvas = canvasRef.current;
@@ -386,61 +414,51 @@ export default function WeatherMap({
 
     if (activeMapOverlay !== "temperature") return;
 
-    // Use fixed absolute geographical dataset (independent of clicked location state)
-    const samples = FIXED_GLOBAL_TEMP_SAMPLES;
+    const mesh = GLOBAL_METEOROLOGICAL_GRID;
 
-    // Screen pixel grid resolution step for 60 FPS performance
-    const step = 6;
+    // High spatial resolution sampling (step = 4) for silky smooth, block-free heatmaps
+    const step = 4;
     const cols = Math.ceil(width / step);
     const rows = Math.ceil(height / step);
 
     const imgData = ctx.createImageData(width, height);
     const data = imgData.data;
 
-    const p = 2; // IDW power parameter
-    const wGlobal = 0.08; // Global baseline weighting factor
+    const p = 2.2; // Shepard IDW power parameter
 
     for (let r = 0; r < rows; r++) {
       const py = r * step + step / 2;
       for (let c = 0; c < cols; c++) {
         const px = c * step + step / 2;
 
-        // Map pixel point to geographic coordinate
+        // Map pixel coordinate to geographic (lat, lon)
         const latLng = map.containerPointToLatLng(L.point(px, py));
         const cellLat = latLng.lat;
         const cellLon = latLng.lng;
 
-        // Latitude-based baseline temperature model (Poles -> -30°C, Equator -> 30°C)
-        const globalBaselineTemp = Math.max(-35, Math.min(32, 30 - Math.abs(cellLat) * 0.72));
-
+        // Smooth continuous 2D Shepard-Gaussian Inverse Distance Weighting
         let num = 0;
         let den = 0;
         let exactTemp: number | null = null;
 
-        for (let i = 0; i < samples.length; i++) {
-          const s = samples[i];
-          const dLat = cellLat - s.lat;
-          const dLon = cellLon - s.lon;
-          const distSq = dLat * dLat + dLon * dLon; // Geographic degree distance
+        for (let i = 0; i < mesh.length; i++) {
+          const m = mesh[i];
+          const dLat = cellLat - m.lat;
+          const dLon = cellLon - m.lon;
+          const distSq = dLat * dLat + dLon * dLon;
 
-          if (distSq < 0.001) {
-            exactTemp = s.temp;
+          if (distSq < 0.0001) {
+            exactTemp = m.temp;
             break;
           }
 
-          const w = 1 / (Math.pow(distSq, p / 2) + 0.15);
-          num += w * s.temp;
+          // Smooth Gaussian-augmented inverse distance weight (eliminates step boundaries)
+          const w = 1 / (Math.pow(distSq, p / 2) + 0.08) + 0.15 * Math.exp(-distSq / 300);
+          num += w * m.temp;
           den += w;
         }
 
-        // Blend local sample IDW with baseline global latitude temperature
-        let interpolatedTemp = 25;
-        if (exactTemp !== null) {
-          interpolatedTemp = exactTemp;
-        } else if (den > 0) {
-          interpolatedTemp = (num + wGlobal * globalBaselineTemp) / (den + wGlobal);
-        }
-
+        const interpolatedTemp = exactTemp !== null ? exactTemp : den > 0 ? num / den : 28;
         const [red, green, blue, alpha] = getTemperatureRGB(interpolatedTemp);
 
         for (let dy = 0; dy < step; dy++) {
@@ -556,13 +574,13 @@ export default function WeatherMap({
 
     const clickLat = validCoord(lat) ? lat : 19.076;
     const clickLon = validCoord(lon) ? lon : 72.8777;
-    const selectedTemp = layers.length > 0 ? Math.round(layers[0].temperature) : 27;
+    const selectedTemp = layers.length > 0 ? Math.round(layers[0].temperature) : 34;
 
     let html = "";
     if (activeMapOverlay === "temperature") {
       html = `<div class="px-2.5 py-1 rounded-full bg-paper/95 backdrop-blur-md text-ink border-2 border-ink shadow-lg text-xs font-sans font-bold flex items-center gap-1 select-none pointer-events-none animate-pulse">
         <span>Selected Location</span>
-        <span class="text-ember">${selectedTemp}°C</span>
+        <span class="text-ember font-extrabold">${selectedTemp}°C</span>
       </div>`;
     } else if (activeMapOverlay === "wind") {
       const selectedWind = layers.length > 0 ? Math.round(layers[0].windSpeed) : 25;
