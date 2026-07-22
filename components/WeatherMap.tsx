@@ -47,6 +47,13 @@ const TRANSPARENT_TILE =
 // 25–30°C    → Yellow  (#eab308)
 // 30–35°C    → Orange  (#f97316)
 // 35–42°C+   → Red     (#ef4444 -> #7f1d1d)
+/**
+ * Maps a given temperature in degrees Celsius to an RGBA color tuple
+ * following the application's single source of truth color gradient scale.
+ *
+ * @param temp Temperature value in °C
+ * @returns [red, green, blue, alpha] color channels
+ */
 function getTemperatureRGB(temp: number): [number, number, number, number] {
   const stops: { t: number; r: number; g: number; b: number }[] = [
     { t: -15, r: 76,  g: 29,  b: 149 }, // Deep Purple (< 0°C)
@@ -349,6 +356,10 @@ export default function WeatherMap({
   }, [activeMapOverlay, frameIndex, radarTimestamps, satTimestamps]);
 
   // ── CONTINUOUS SPATIAL THERMAL FIELD RENDERER WITH LIVE WEATHER SYNCHRONIZATION ──
+  /**
+   * Renders a continuous spatial thermal field across the canvas viewport using
+   * Inverse Distance Weighting (IDW) interpolation synced with Leaflet map projection.
+   */
   const renderIDWTemperatureField = useCallback(() => {
     const map = mapRef.current;
     const canvas = canvasRef.current;
