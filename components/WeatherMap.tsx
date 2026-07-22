@@ -74,6 +74,31 @@ function getTemperatureRGB(temp: number): [number, number, number, number] {
   return [234, 179, 8, 175];
 }
 
+// Fixed absolute geographical temperature dataset (prevents click location state from shifting background)
+const FIXED_GLOBAL_TEMP_SAMPLES: { lat: number; lon: number; temp: number }[] = [
+  { lat: 19.076, lon: 72.877, temp: 27 }, // Mumbai
+  { lat: 19.696, lon: 72.765, temp: 26 }, // Palghar
+  { lat: 19.218, lon: 72.978, temp: 28 }, // Thane
+  { lat: 18.520, lon: 73.856, temp: 22 }, // Pune (Cooler hill region)
+  { lat: 21.170, lon: 72.831, temp: 26 }, // Surat
+  { lat: 19.997, lon: 73.789, temp: 24 }, // Nasik
+  { lat: 17.680, lon: 74.018, temp: 22 }, // Satara
+  { lat: 17.659, lon: 75.906, temp: 25 }, // Solapur
+  { lat: 17.385, lon: 78.486, temp: 24 }, // Hyderabad
+  { lat: 21.145, lon: 79.088, temp: 25 }, // Nagpur
+  { lat: 15.849, lon: 74.497, temp: 23 }, // Belagavi
+  { lat: 15.299, lon: 74.124, temp: 28 }, // Goa
+  { lat: 23.022, lon: 72.571, temp: 30 }, // Ahmedabad
+  { lat: 22.307, lon: 73.181, temp: 29 }, // Vadodara
+  { lat: 20.000, lon: 70.000, temp: 28 }, // Arabian Sea
+  { lat: 33.939, lon: 67.710, temp: 19 }, // Afghanistan
+  { lat: 35.689, lon: 51.389, temp: 21 }, // Iran
+  { lat: 24.713, lon: 46.675, temp: 31 }, // Riyadh
+  { lat: 51.507, lon: -0.127, temp: 14 }, // London
+  { lat: 48.856, lon: 2.352,   temp: 16 }, // Paris
+  { lat: 40.712, lon: -74.006, temp: 18 }, // New York
+];
+
 export default function WeatherMap({
   lat,
   lon,
@@ -344,6 +369,7 @@ export default function WeatherMap({
   }, [activeMapOverlay, frameIndex, radarTimestamps, satTimestamps]);
 
   // ── INVERSE DISTANCE WEIGHTING (IDW) THERMAL FIELD CANVAS RENDERER ──────────
+  // Decoupled from clicked location state to ensure clicking a point leaves background 100% stable
   const renderIDWTemperatureField = useCallback(() => {
     const map = mapRef.current;
     const canvas = canvasRef.current;
@@ -360,29 +386,8 @@ export default function WeatherMap({
 
     if (activeMapOverlay !== "temperature") return;
 
-    const baseLat = validCoord(lat) ? lat : 19.076;
-    const baseLon = validCoord(lon) ? lon : 72.8777;
-    const currentTemp = layers.length > 0 ? layers[0].temperature : 27;
-
-    // Spatial temperature sampling points (Open-Meteo grid data + regional hubs)
-    const samples: { lat: number; lon: number; temp: number }[] = [
-      { lat: baseLat, lon: baseLon, temp: currentTemp },
-      ...layers.map((l) => ({ lat: l.lat, lon: l.lon, temp: l.temperature })),
-      { lat: 19.696, lon: 72.765, temp: currentTemp - 1 }, // Palghar
-      { lat: 19.218, lon: 72.978, temp: currentTemp + 1 }, // Thane
-      { lat: 18.520, lon: 73.856, temp: currentTemp - 5 }, // Pune (Cooler hill region)
-      { lat: 21.170, lon: 72.831, temp: currentTemp - 1 }, // Surat
-      { lat: 19.997, lon: 73.789, temp: currentTemp - 3 }, // Nasik
-      { lat: 17.680, lon: 74.018, temp: currentTemp - 5 }, // Satara
-      { lat: 17.659, lon: 75.906, temp: currentTemp - 2 }, // Solapur
-      { lat: 17.385, lon: 78.486, temp: currentTemp - 3 }, // Hyderabad
-      { lat: 21.145, lon: 79.088, temp: currentTemp - 2 }, // Nagpur
-      { lat: 15.849, lon: 74.497, temp: currentTemp - 4 }, // Belagavi
-      { lat: 15.299, lon: 74.124, temp: currentTemp + 1 }, // Goa
-      { lat: 23.022, lon: 72.571, temp: currentTemp + 3 }, // Ahmedabad
-      { lat: 22.307, lon: 73.181, temp: currentTemp + 2 }, // Vadodara
-      { lat: 20.000, lon: 70.000, temp: currentTemp + 2 }, // Arabian Sea
-    ];
+    // Use fixed absolute geographical dataset (independent of clicked location state)
+    const samples = FIXED_GLOBAL_TEMP_SAMPLES;
 
     // Screen pixel grid resolution step for 60 FPS performance
     const step = 6;
@@ -428,8 +433,8 @@ export default function WeatherMap({
           den += w;
         }
 
-        // Blend regional IDW samples with planetary latitude baseline
-        let interpolatedTemp = currentTemp;
+        // Blend local sample IDW with baseline global latitude temperature
+        let interpolatedTemp = 25;
         if (exactTemp !== null) {
           interpolatedTemp = exactTemp;
         } else if (den > 0) {
@@ -455,7 +460,7 @@ export default function WeatherMap({
     }
 
     ctx.putImageData(imgData, 0, 0);
-  }, [activeMapOverlay, lat, lon, layers]);
+  }, [activeMapOverlay]);
 
   // Synchronize IDW canvas recalculation on Leaflet move, zoomend, and resize events
   useEffect(() => {
@@ -541,7 +546,7 @@ export default function WeatherMap({
     };
   }, [activeMapOverlay]);
 
-  // ── Regional City Weather Badges Overlay ──────────────────────────────────
+  // ── Selected Clicked Location Marker (Only updates point badge at lat, lon) ──
   useEffect(() => {
     if (!mapRef.current) return;
     overlayMarkersRef.current.forEach((m) => m.remove());
@@ -549,52 +554,34 @@ export default function WeatherMap({
 
     if (activeMapOverlay === "none") return;
 
-    const baseLat = validCoord(lat) ? lat : 19.076;
-    const baseLon = validCoord(lon) ? lon : 72.8777;
+    const clickLat = validCoord(lat) ? lat : 19.076;
+    const clickLon = validCoord(lon) ? lon : 72.8777;
+    const selectedTemp = layers.length > 0 ? Math.round(layers[0].temperature) : 27;
 
-    const regionCities = [
-      { name: "Mumbai", lat: 19.076, lon: 72.8777, tempOffset: 0, windSpeed: 32 },
-      { name: "Palghar", lat: 19.696, lon: 72.765, tempOffset: -1, windSpeed: 28 },
-      { name: "Thane", lat: 19.218, lon: 72.978, tempOffset: 1, windSpeed: 26 },
-      { name: "Bhiwandi", lat: 19.281, lon: 73.048, tempOffset: 1, windSpeed: 24 },
-      { name: "Pune", lat: 18.520, lon: 73.856, tempOffset: -4, windSpeed: 26 },
-      { name: "Surat", lat: 21.170, lon: 72.831, tempOffset: -1, windSpeed: 26 },
-      { name: "Nasik", lat: 19.997, lon: 73.789, tempOffset: -2, windSpeed: 25 },
-      { name: "Satara", lat: 17.680, lon: 74.018, tempOffset: -5, windSpeed: 18 },
-      { name: "Solapur", lat: 17.659, lon: 75.906, tempOffset: -3, windSpeed: 24 },
-      { name: "Hyderabad", lat: 17.385, lon: 78.486, tempOffset: -3, windSpeed: 24 },
-      { name: "Nagpur", lat: 21.145, lon: 79.088, tempOffset: -2, windSpeed: 25 },
-      { name: "Belagavi", lat: 15.849, lon: 74.497, tempOffset: -5, windSpeed: 22 },
-    ];
+    let html = "";
+    if (activeMapOverlay === "temperature") {
+      html = `<div class="px-2.5 py-1 rounded-full bg-paper/95 backdrop-blur-md text-ink border-2 border-ink shadow-lg text-xs font-sans font-bold flex items-center gap-1 select-none pointer-events-none animate-pulse">
+        <span>Selected Location</span>
+        <span class="text-ember">${selectedTemp}°C</span>
+      </div>`;
+    } else if (activeMapOverlay === "wind") {
+      const selectedWind = layers.length > 0 ? Math.round(layers[0].windSpeed) : 25;
+      html = `<div class="px-2.5 py-1 rounded-full bg-paper/95 backdrop-blur-md text-ink border-2 border-ink shadow-lg text-xs font-sans font-bold flex items-center gap-1 select-none pointer-events-none">
+        <span>Selected Location</span>
+        <span>${selectedWind} km/h ↘</span>
+      </div>`;
+    }
 
-    const currentTemp = layers.length > 0 ? layers[0].temperature : 27;
-
-    regionCities.forEach((city) => {
-      let html = "";
-      if (activeMapOverlay === "temperature") {
-        const cityTemp = Math.round(currentTemp + city.tempOffset);
-        html = `<div class="px-2 py-0.5 rounded-full bg-paper/90 backdrop-blur-md text-ink border border-hairline shadow-md text-[11px] font-sans font-bold flex items-center gap-1 select-none pointer-events-none">
-          <span class="text-mid-gray font-normal text-[10px]">${city.name}</span>
-          <span>${cityTemp}°C</span>
-        </div>`;
-      } else if (activeMapOverlay === "wind") {
-        html = `<div class="px-2 py-0.5 rounded-full bg-paper/90 backdrop-blur-md text-ink border border-hairline shadow-md text-[10px] font-sans font-bold flex items-center gap-1 select-none pointer-events-none">
-          <span class="text-mid-gray font-normal text-[9px]">${city.name}</span>
-          <span>${city.windSpeed} km/h ↘</span>
-        </div>`;
-      }
-
-      if (html) {
-        const icon = L.divIcon({
-          className: "custom-region-badge",
-          html: html,
-          iconSize: [80, 24],
-          iconAnchor: [40, 12],
-        });
-        const marker = L.marker([city.lat, city.lon], { icon }).addTo(mapRef.current!);
-        overlayMarkersRef.current.push(marker);
-      }
-    });
+    if (html) {
+      const icon = L.divIcon({
+        className: "custom-selected-badge",
+        html: html,
+        iconSize: [140, 28],
+        iconAnchor: [70, 14],
+      });
+      const marker = L.marker([clickLat, clickLon], { icon }).addTo(mapRef.current!);
+      overlayMarkersRef.current.push(marker);
+    }
   }, [activeMapOverlay, lat, lon, layers]);
 
   // ── Primary Weather Layer Markers ────────────────────────────────────────────
