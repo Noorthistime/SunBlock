@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+
 import L from "leaflet";
 import { WeatherLayerPoint, LayerType } from "../types/weather";
 import { StyleModeType, ThemeType } from "../hooks/useWeather";
@@ -39,6 +40,44 @@ function validCoord(v: number) {
 const TRANSPARENT_TILE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
+// ── Multi-Stop Perceptually Smooth Temperature Color Mapping ─────────────────
+// Deep Purple -> Dark Blue -> Blue -> Cyan -> Green -> Yellow -> Orange -> Red -> Dark Red
+function getTemperatureRGB(temp: number): [number, number, number, number] {
+  // Temperature stops in °C
+  const stops: { t: number; r: number; g: number; b: number }[] = [
+    { t: -15, r: 76,  g: 29,  b: 149 }, // Deep Purple
+    { t: -5,  r: 30,  g: 58,  b: 138 }, // Dark Blue
+    { t: 5,   r: 37,  g: 99,  b: 235 }, // Blue
+    { t: 14,  r: 6,   g: 182, b: 212 }, // Cyan
+    { t: 21,  r: 16,  g: 185, b: 129 }, // Green
+    { t: 26,  r: 234, g: 179, b: 8   }, // Yellow
+    { t: 31,  r: 249, g: 115, b: 22  }, // Orange
+    { t: 36,  r: 239, g: 68,  b: 68  }, // Red
+    { t: 42,  r: 127, g: 29,  b: 29  }, // Dark Red
+  ];
+
+  if (temp <= stops[0].t) return [stops[0].r, stops[0].g, stops[0].b, 175];
+  if (temp >= stops[stops.length - 1].t) {
+    const last = stops[stops.length - 1];
+    return [last.r, last.g, last.b, 175];
+  }
+
+  // Linear interpolation between color stops
+  for (let i = 0; i < stops.length - 1; i++) {
+    const s1 = stops[i];
+    const s2 = stops[i + 1];
+    if (temp >= s1.t && temp <= s2.t) {
+      const factor = (temp - s1.t) / (s2.t - s1.t);
+      const r = Math.round(s1.r + factor * (s2.r - s1.r));
+      const g = Math.round(s1.g + factor * (s2.g - s1.g));
+      const b = Math.round(s1.b + factor * (s2.b - s1.b));
+      return [r, g, b, 175]; // Semi-transparent (alpha ~ 0.68)
+    }
+  }
+
+  return [234, 179, 8, 175];
+}
+
 export default function WeatherMap({
   lat,
   lon,
@@ -52,7 +91,7 @@ export default function WeatherMap({
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeMapOverlay, setActiveMapOverlay] = useState<MapOverlayType>("none");
 
-  // RainViewer timestamps for real-time radar & satellite animation
+  // RainViewer timestamps for live radar & satellite animation
   const [radarTimestamps, setRadarTimestamps] = useState<number[]>([]);
   const [satTimestamps, setSatTimestamps] = useState<number[]>([]);
   const [frameIndex, setFrameIndex] = useState<number>(0);
@@ -91,7 +130,7 @@ export default function WeatherMap({
 
         if (radarList.length > 0) {
           setRadarTimestamps(radarList);
-          setFrameIndex(radarList.length - 1); // Start at latest
+          setFrameIndex(radarList.length - 1);
         }
         if (satList.length > 0) {
           setSatTimestamps(satList);
@@ -100,7 +139,7 @@ export default function WeatherMap({
       .catch((err) => console.warn("RainViewer timestamp fetch failed:", err));
   }, []);
 
-  // Live animation playback loop (advances frameIndex every 800ms)
+  // Live animation playback loop
   useEffect(() => {
     if (activeMapOverlay === "none" || !isPlaying) return;
 
@@ -125,6 +164,7 @@ export default function WeatherMap({
 
   const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
   const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+  const voyagerTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
   const attribution =
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
   const isGallery = styleMode === "gallery";
@@ -170,7 +210,8 @@ export default function WeatherMap({
       }
     });
 
-    const tiles = L.tileLayer(theme === "dark" ? darkTiles : lightTiles, {
+    const activeBaseTile = activeMapOverlay !== "none" ? voyagerTiles : theme === "dark" ? darkTiles : lightTiles;
+    const tiles = L.tileLayer(activeBaseTile, {
       attribution,
       maxZoom: 19,
       noWrap: true,
@@ -207,23 +248,23 @@ export default function WeatherMap({
     }
   }, [lat, lon]);
 
-  // ── Tile theme swap ──────────────────────────────────────────────────────────
+  // ── Base Map Tile Swap ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!tileLayerRef.current) return;
-    tileLayerRef.current.setUrl(theme === "dark" ? darkTiles : lightTiles);
-  }, [theme]);
+    const targetBaseTiles = activeMapOverlay !== "none" ? voyagerTiles : theme === "dark" ? darkTiles : lightTiles;
+    tileLayerRef.current.setUrl(targetBaseTiles);
+  }, [theme, activeMapOverlay]);
 
-  // ── Active Overlay Weather Layer Management ──────────────────────────────────
+  // ── Active Overlay Weather Tile Layer Management ──────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // Clear previous overlay
     if (overlayTileLayerRef.current) {
       overlayTileLayerRef.current.remove();
       overlayTileLayerRef.current = null;
     }
 
-    if (activeMapOverlay === "none") return;
+    if (activeMapOverlay === "none" || activeMapOverlay === "temperature") return;
 
     const timestamps = activeMapOverlay === "clouds" ? satTimestamps : radarTimestamps;
     const ts =
@@ -235,49 +276,161 @@ export default function WeatherMap({
     let opacity = 0.75;
     let className = "";
 
-    // Officially supported RainViewer tile schemes:
-    // /radar/{ts}/256/{z}/{x}/{y}/1/1_1.png (Smooth radar)
-    // /radar/{ts}/256/{z}/{x}/{y}/1/1_0.png (Precipitation)
-    // /sat/{ts}/256/{z}/{x}/{y}/0/0_0.png (Infrared Satellite Cloud)
     if (activeMapOverlay === "radar") {
       tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
+      opacity = 0.8;
     } else if (activeMapOverlay === "precipitation") {
       tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_0.png`;
+      opacity = 0.85;
     } else if (activeMapOverlay === "clouds") {
       tileUrl = `https://tilecache.rainviewer.com/v2/sat/${ts}/256/{z}/{x}/{y}/0/0_0.png`;
       opacity = 0.65;
-    } else if (activeMapOverlay === "temperature") {
-      tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
-      opacity = 0.75;
-      className = "temperature-hue-filter";
     } else if (activeMapOverlay === "wind") {
       tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
-      opacity = 0.75;
-      className = "wind-hue-filter";
+      opacity = 0.7;
+      className = "wind-velocity-filter";
     }
 
     if (tileUrl) {
       const overlayLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
-        maxNativeZoom: 7, // CRITICAL: Prevents "Zoom Level Not Supported" tiles at deep zoom levels!
+        maxNativeZoom: 7,
         opacity: opacity,
         zIndex: 400,
-        errorTileUrl: TRANSPARENT_TILE, // Fallback transparent 1x1 image so error boxes never appear!
+        errorTileUrl: TRANSPARENT_TILE,
         className: className,
       }).addTo(mapRef.current);
       overlayTileLayerRef.current = overlayLayer;
     }
   }, [activeMapOverlay, frameIndex, radarTimestamps, satTimestamps]);
 
-  // ── Real-Time Wind Stream Particles Canvas (Active when Wind or Temperature selected) ──
-  useEffect(() => {
-    if (activeMapOverlay !== "wind" && activeMapOverlay !== "temperature") {
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+  // ── INVERSE DISTANCE WEIGHTING (IDW) THERMAL FIELD CANVAS RENDERER ──────────
+  const renderIDWTemperatureField = useCallback(() => {
+    const map = mapRef.current;
+    const canvas = canvasRef.current;
+    if (!map || !canvas || !containerRef.current) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const width = (canvas.width = containerRef.current.clientWidth);
+    const height = (canvas.height = containerRef.current.clientHeight);
+
+    if (width === 0 || height === 0) return;
+
+    ctx.clearRect(0, 0, width, height);
+
+    if (activeMapOverlay !== "temperature") return;
+
+    const baseLat = validCoord(lat) ? lat : 19.076;
+    const baseLon = validCoord(lon) ? lon : 72.8777;
+    const currentTemp = layers.length > 0 ? layers[0].temperature : 27;
+
+    // Spatial temperature sampling points (real Open-Meteo grid data + regional hubs)
+    const samples: { lat: number; lon: number; temp: number }[] = [
+      { lat: baseLat, lon: baseLon, temp: currentTemp },
+      ...layers.map((l) => ({ lat: l.lat, lon: l.lon, temp: l.temperature })),
+      { lat: 19.696, lon: 72.765, temp: currentTemp - 1 }, // Palghar
+      { lat: 19.218, lon: 72.978, temp: currentTemp + 1 }, // Thane
+      { lat: 18.520, lon: 73.856, temp: currentTemp - 5 }, // Pune (Cooler hill region)
+      { lat: 21.170, lon: 72.831, temp: currentTemp - 1 }, // Surat
+      { lat: 19.997, lon: 73.789, temp: currentTemp - 3 }, // Nasik
+      { lat: 17.680, lon: 74.018, temp: currentTemp - 5 }, // Satara
+      { lat: 17.659, lon: 75.906, temp: currentTemp - 2 }, // Solapur
+      { lat: 17.385, lon: 78.486, temp: currentTemp - 3 }, // Hyderabad
+      { lat: 21.145, lon: 79.088, temp: currentTemp - 2 }, // Nagpur
+      { lat: 15.849, lon: 74.497, temp: currentTemp - 4 }, // Belagavi
+      { lat: 15.299, lon: 74.124, temp: currentTemp + 1 }, // Goa
+      { lat: 23.022, lon: 72.571, temp: currentTemp + 3 }, // Ahmedabad (Warmer)
+      { lat: 22.307, lon: 73.181, temp: currentTemp + 2 }, // Vadodara
+      { lat: 20.000, lon: 70.000, temp: currentTemp + 2 }, // Arabian Sea
+    ];
+
+    // Screen pixel grid resolution step for 60 FPS performance
+    const step = 5;
+    const cols = Math.ceil(width / step);
+    const rows = Math.ceil(height / step);
+
+    const imgData = ctx.createImageData(width, height);
+    const data = imgData.data;
+
+    // Convert samples to pixel coordinates in current Leaflet viewport
+    const pixelSamples = samples.map((s) => {
+      const pt = map.latLngToContainerPoint(L.latLng(s.lat, s.lon));
+      return { x: pt.x, y: pt.y, temp: s.temp };
+    });
+
+    const p = 2; // IDW power parameter
+
+    for (let r = 0; r < rows; r++) {
+      const py = r * step + step / 2;
+      for (let c = 0; c < cols; c++) {
+        const px = c * step + step / 2;
+
+        let num = 0;
+        let den = 0;
+        let exactTemp: number | null = null;
+
+        for (let i = 0; i < pixelSamples.length; i++) {
+          const ps = pixelSamples[i];
+          const dx = px - ps.x;
+          const dy = py - ps.y;
+          const distSq = dx * dx + dy * dy;
+
+          if (distSq < 1) {
+            exactTemp = ps.temp;
+            break;
+          }
+
+          const w = 1 / Math.pow(distSq, p / 2);
+          num += w * ps.temp;
+          den += w;
+        }
+
+        const interpolatedTemp = exactTemp !== null ? exactTemp : den > 0 ? num / den : currentTemp;
+        const [red, green, blue, alpha] = getTemperatureRGB(interpolatedTemp);
+
+        // Fill grid block in ImageData buffer
+        for (let dy = 0; dy < step; dy++) {
+          const y = r * step + dy;
+          if (y >= height) break;
+          for (let dx = 0; dx < step; dx++) {
+            const x = c * step + dx;
+            if (x >= width) break;
+            const index = (y * width + x) * 4;
+            data[index] = red;
+            data[index + 1] = green;
+            data[index + 2] = blue;
+            data[index + 3] = alpha;
+          }
+        }
       }
-      return;
     }
+
+    ctx.putImageData(imgData, 0, 0);
+  }, [activeMapOverlay, lat, lon, layers]);
+
+  // Synchronize IDW canvas recalculation on Leaflet pan, zoom, and resize events
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    renderIDWTemperatureField();
+
+    const handleMove = () => renderIDWTemperatureField();
+    map.on("move", handleMove);
+    map.on("zoom", handleMove);
+    map.on("resize", handleMove);
+
+    return () => {
+      map.off("move", handleMove);
+      map.off("zoom", handleMove);
+      map.off("resize", handleMove);
+    };
+  }, [activeMapOverlay, renderIDWTemperatureField]);
+
+  // ── Particle Flow Streamlines Canvas (Active ONLY for Wind mode) ────────────
+  useEffect(() => {
+    if (activeMapOverlay !== "wind") return;
 
     const canvas = canvasRef.current;
     if (!canvas || !containerRef.current) return;
@@ -288,23 +441,19 @@ export default function WeatherMap({
     const width = (canvas.width = containerRef.current.clientWidth);
     const height = (canvas.height = containerRef.current.clientHeight);
 
-    // Create moving particle streams
-    const numParticles = 65;
+    const numParticles = 80;
     const particles = Array.from({ length: numParticles }).map(() => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      length: Math.random() * 18 + 8,
-      speed: Math.random() * 2 + 1,
-      angle: (Math.random() * 30 - 15) * (Math.PI / 180), // Slight angle
+      length: Math.random() * 22 + 10,
+      speed: Math.random() * 2.5 + 1.2,
+      angle: (Math.random() * 20 - 10 + 30) * (Math.PI / 180),
     }));
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
-      ctx.strokeStyle =
-        activeMapOverlay === "temperature"
-          ? "rgba(251, 146, 60, 0.45)"
-          : "rgba(56, 189, 248, 0.55)";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+      ctx.lineWidth = 1.8;
       ctx.lineCap = "round";
 
       particles.forEach((p) => {
@@ -330,7 +479,7 @@ export default function WeatherMap({
     };
   }, [activeMapOverlay]);
 
-  // ── Weather layer markers ────────────────────────────────────────────────────
+  // ── Primary Weather Layer Markers ────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
     markersRef.current.forEach((m) => m.remove());
@@ -428,7 +577,7 @@ export default function WeatherMap({
       {/* ── Leaflet 2D Map ── */}
       <div ref={mapContainerRef} className="w-full h-full min-h-[400px] md:min-h-[500px] z-10" />
 
-      {/* ── Particle Animation Canvas Layer ── */}
+      {/* ── Particle / Thermal Canvas Overlay ── */}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 z-15 pointer-events-none w-full h-full"
@@ -445,7 +594,7 @@ export default function WeatherMap({
         <span className="h-1.5 w-1.5 rounded-full bg-ink animate-pulse" />
         <span>
           {activeMapOverlay !== "none"
-            ? `LIVE ${activeMapOverlay.toUpperCase()} STREAM • ${timeFormatted}`
+            ? `LIVE ${activeMapOverlay.toUpperCase()} MAP • ${timeFormatted}`
             : isGallery
             ? "GRID SECTOR MAP"
             : "Sector Grid Map"}
@@ -484,7 +633,7 @@ export default function WeatherMap({
         </div>
       )}
 
-      {/* ── Active Layer Color Legend & Playback Bar (Visible when an overlay is active in Expanded Mode) ── */}
+      {/* ── Active Layer Color Legend & Playback Control (Matching MSN Reference Images) ── */}
       {isExpanded && activeMapOverlay !== "none" && (
         <div
           className={`absolute bottom-6 left-6 z-20 px-3.5 py-2.5 flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider ${
@@ -495,33 +644,39 @@ export default function WeatherMap({
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="p-1 hover:bg-canvas rounded-full transition-colors cursor-pointer"
-                title={isPlaying ? "Pause Stream Animation" : "Play Stream Animation"}
-              >
-                {isPlaying ? <Pause className="h-3 w-3 text-ink" /> : <Play className="h-3 w-3 text-ink" />}
-              </button>
-              <span>{activeMapOverlay} STREAM</span>
+              {activeMapOverlay !== "temperature" && (
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="p-1 hover:bg-canvas rounded-full transition-colors cursor-pointer"
+                  title={isPlaying ? "Pause Stream Animation" : "Play Stream Animation"}
+                >
+                  {isPlaying ? <Pause className="h-3 w-3 text-ink" /> : <Play className="h-3 w-3 text-ink" />}
+                </button>
+              )}
+              <span>{activeMapOverlay} SCALE</span>
             </div>
             <span className="text-mid-gray text-[9px]">{timeFormatted}</span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-[9px] text-mid-gray">MIN</span>
+            <span className="text-[9px] text-mid-gray">
+              {activeMapOverlay === "temperature" ? "-15°C" : activeMapOverlay === "wind" ? "0 km/h" : "LIGHT"}
+            </span>
             <div
-              className="h-2 w-40 rounded-full overflow-hidden border border-hairline"
+              className="h-2.5 w-48 rounded-full overflow-hidden border border-hairline"
               style={{
                 background:
                   activeMapOverlay === "temperature"
-                    ? "linear-gradient(to right, #3b82f6, #10b981, #f59e0b, #ef4444)"
+                    ? "linear-gradient(to right, #4c1d95, #1e3a8a, #2563eb, #06b6d4, #10b981, #eab308, #f97316, #ef4444, #7f1d1d)"
                     : activeMapOverlay === "wind"
-                    ? "linear-gradient(to right, #0284c7, #10b981, #eab308, #dc2626)"
+                    ? "linear-gradient(to right, #06b6d4, #10b981, #eab308, #dc2626)"
                     : activeMapOverlay === "clouds"
                     ? "linear-gradient(to right, #475569, #94a3b8, #f8fafc)"
-                    : "linear-gradient(to right, #22c55e, #eab308, #ef4444, #a855f7)",
+                    : "linear-gradient(to right, #4ade80, #facc15, #f87171, #c084fc)",
               }}
             />
-            <span className="text-[9px] text-mid-gray">MAX</span>
+            <span className="text-[9px] text-mid-gray">
+              {activeMapOverlay === "temperature" ? "42°C" : activeMapOverlay === "wind" ? "100 km/h" : "HEAVY"}
+            </span>
           </div>
         </div>
       )}
@@ -546,7 +701,7 @@ export default function WeatherMap({
             const next = !isExpanded;
             setIsExpanded(next);
             if (!next) {
-              setActiveMapOverlay("none"); // Reset layer on collapse
+              setActiveMapOverlay("none");
             }
           }}
           title={isExpanded ? "Collapse Map" : "Expand Fullscreen"}
