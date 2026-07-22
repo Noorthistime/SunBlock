@@ -399,3 +399,13 @@ body {
   animation: brand-shine-cycle 10s infinite ease-in-out;
   transition: text-shadow 0.5s ease-in-out, opacity 0.5s ease-in-out, color 0.5s ease-in-out;
 }
+
+/* Weather map layer color filters */
+.temperature-hue-filter {
+  filter: hue-rotate(170deg) saturate(2.5) contrast(1.2);
+}
+
+.wind-hue-filter {
+  filter: hue-rotate(210deg) saturate(2) brightness(1.1);
+}
+
