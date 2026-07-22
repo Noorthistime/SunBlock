@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-
 import L from "leaflet";
 import { WeatherLayerPoint, LayerType } from "../types/weather";
 import { StyleModeType, ThemeType } from "../hooks/useWeather";
@@ -38,12 +37,10 @@ function validCoord(v: number) {
 
 // 1x1 transparent PNG data URI to replace any missing/unsupported tiles cleanly
 const TRANSPARENT_TILE =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORTH5CYII=";
 
 // ── Multi-Stop Perceptually Smooth Temperature Color Mapping ─────────────────
-// Deep Purple -> Dark Blue -> Blue -> Cyan -> Green -> Yellow -> Orange -> Red -> Dark Red
 function getTemperatureRGB(temp: number): [number, number, number, number] {
-  // Temperature stops in °C
   const stops: { t: number; r: number; g: number; b: number }[] = [
     { t: -15, r: 76,  g: 29,  b: 149 }, // Deep Purple
     { t: -5,  r: 30,  g: 58,  b: 138 }, // Dark Blue
@@ -62,7 +59,6 @@ function getTemperatureRGB(temp: number): [number, number, number, number] {
     return [last.r, last.g, last.b, 175];
   }
 
-  // Linear interpolation between color stops
   for (let i = 0; i < stops.length - 1; i++) {
     const s1 = stops[i];
     const s2 = stops[i + 1];
@@ -71,7 +67,7 @@ function getTemperatureRGB(temp: number): [number, number, number, number] {
       const r = Math.round(s1.r + factor * (s2.r - s1.r));
       const g = Math.round(s1.g + factor * (s2.g - s1.g));
       const b = Math.round(s1.b + factor * (s2.b - s1.b));
-      return [r, g, b, 175]; // Semi-transparent (alpha ~ 0.68)
+      return [r, g, b, 175];
     }
   }
 
@@ -104,6 +100,8 @@ export default function WeatherMap({
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const overlayTileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const overlayMarkersRef = useRef<L.Marker[]>([]);
+  const isZoomingRef = useRef<boolean>(false);
 
   const onMapClickRef = useRef(onMapClick);
   useEffect(() => {
@@ -153,12 +151,30 @@ export default function WeatherMap({
     return () => clearInterval(interval);
   }, [activeMapOverlay, isPlaying, radarTimestamps, satTimestamps]);
 
+  // Native Container ResizeObserver for map & canvas bounds
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const ro = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+      if (canvasRef.current && containerRef.current) {
+        canvasRef.current.width = containerRef.current.clientWidth;
+        canvasRef.current.height = containerRef.current.clientHeight;
+      }
+    });
+
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   // Invalidate Leaflet size on expand toggle
   useEffect(() => {
     if (mapRef.current) {
       setTimeout(() => {
         mapRef.current?.invalidateSize();
-      }, 300);
+      }, 200);
     }
   }, [isExpanded]);
 
@@ -169,7 +185,7 @@ export default function WeatherMap({
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
   const isGallery = styleMode === "gallery";
 
-  // ── Leaflet init ────────────────────────────────────────────────────────────
+  // ── Leaflet init (Single persistent instance) ────────────────────────────────
   useEffect(() => {
     if (!mapContainerRef.current) return;
     if (mapRef.current) {
@@ -187,12 +203,21 @@ export default function WeatherMap({
       maxZoom: 18,
       zoomControl: false,
       scrollWheelZoom: true,
-      fadeAnimation: true,
+      fadeAnimation: false, // Prevents translucent flashing during tile loads
+      zoomAnimation: true,
       attributionControl: false,
       maxBounds: [[-85, -180], [85, 180]],
       maxBoundsViscosity: 1.0,
     });
     mapRef.current = map;
+
+    // Track zoom animation lifecycle
+    map.on("zoomstart", () => {
+      isZoomingRef.current = true;
+    });
+    map.on("zoomend", () => {
+      isZoomingRef.current = false;
+    });
 
     let clickTimeout: ReturnType<typeof setTimeout> | null = null;
     map.on("click", (e: L.LeafletMouseEvent) => {
@@ -211,13 +236,24 @@ export default function WeatherMap({
     });
 
     const activeBaseTile = activeMapOverlay !== "none" ? voyagerTiles : theme === "dark" ? darkTiles : lightTiles;
+    
+    // Optimized TileLayer configuration to eliminate solid-colored zoom glitches
     const tiles = L.tileLayer(activeBaseTile, {
       attribution,
       maxZoom: 19,
       noWrap: true,
+      keepBuffer: 8,            // Retains 8 tile rings in DOM memory during zoom
+      updateWhenZooming: false, // Prevents tile thrashing mid-zoom
+      updateWhenIdle: true,    // Loads clean tiles when zoom completes
       bounds: [[-85, -180], [85, 180]],
     }).addTo(map);
     tileLayerRef.current = tiles;
+
+    // Ensure initial canvas dimensions match container
+    if (canvasRef.current && mapContainerRef.current) {
+      canvasRef.current.width = mapContainerRef.current.clientWidth;
+      canvasRef.current.height = mapContainerRef.current.clientHeight;
+    }
 
     setTimeout(() => {
       map.invalidateSize();
@@ -295,6 +331,9 @@ export default function WeatherMap({
       const overlayLayer = L.tileLayer(tileUrl, {
         maxZoom: 19,
         maxNativeZoom: 7,
+        keepBuffer: 8,
+        updateWhenZooming: false,
+        updateWhenIdle: true,
         opacity: opacity,
         zIndex: 400,
         errorTileUrl: TRANSPARENT_TILE,
@@ -312,8 +351,8 @@ export default function WeatherMap({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const width = (canvas.width = containerRef.current.clientWidth);
-    const height = (canvas.height = containerRef.current.clientHeight);
+    const width = canvas.width;
+    const height = canvas.height;
 
     if (width === 0 || height === 0) return;
 
@@ -325,7 +364,7 @@ export default function WeatherMap({
     const baseLon = validCoord(lon) ? lon : 72.8777;
     const currentTemp = layers.length > 0 ? layers[0].temperature : 27;
 
-    // Spatial temperature sampling points (real Open-Meteo grid data + regional hubs)
+    // Spatial temperature sampling points (Open-Meteo grid data + regional hubs)
     const samples: { lat: number; lon: number; temp: number }[] = [
       { lat: baseLat, lon: baseLon, temp: currentTemp },
       ...layers.map((l) => ({ lat: l.lat, lon: l.lon, temp: l.temperature })),
@@ -340,56 +379,65 @@ export default function WeatherMap({
       { lat: 21.145, lon: 79.088, temp: currentTemp - 2 }, // Nagpur
       { lat: 15.849, lon: 74.497, temp: currentTemp - 4 }, // Belagavi
       { lat: 15.299, lon: 74.124, temp: currentTemp + 1 }, // Goa
-      { lat: 23.022, lon: 72.571, temp: currentTemp + 3 }, // Ahmedabad (Warmer)
+      { lat: 23.022, lon: 72.571, temp: currentTemp + 3 }, // Ahmedabad
       { lat: 22.307, lon: 73.181, temp: currentTemp + 2 }, // Vadodara
       { lat: 20.000, lon: 70.000, temp: currentTemp + 2 }, // Arabian Sea
     ];
 
     // Screen pixel grid resolution step for 60 FPS performance
-    const step = 5;
+    const step = 6;
     const cols = Math.ceil(width / step);
     const rows = Math.ceil(height / step);
 
     const imgData = ctx.createImageData(width, height);
     const data = imgData.data;
 
-    // Convert samples to pixel coordinates in current Leaflet viewport
-    const pixelSamples = samples.map((s) => {
-      const pt = map.latLngToContainerPoint(L.latLng(s.lat, s.lon));
-      return { x: pt.x, y: pt.y, temp: s.temp };
-    });
-
     const p = 2; // IDW power parameter
+    const wGlobal = 0.08; // Global baseline weighting factor
 
     for (let r = 0; r < rows; r++) {
       const py = r * step + step / 2;
       for (let c = 0; c < cols; c++) {
         const px = c * step + step / 2;
 
+        // Map pixel point to geographic coordinate
+        const latLng = map.containerPointToLatLng(L.point(px, py));
+        const cellLat = latLng.lat;
+        const cellLon = latLng.lng;
+
+        // Latitude-based baseline temperature model (Poles -> -30°C, Equator -> 30°C)
+        const globalBaselineTemp = Math.max(-35, Math.min(32, 30 - Math.abs(cellLat) * 0.72));
+
         let num = 0;
         let den = 0;
         let exactTemp: number | null = null;
 
-        for (let i = 0; i < pixelSamples.length; i++) {
-          const ps = pixelSamples[i];
-          const dx = px - ps.x;
-          const dy = py - ps.y;
-          const distSq = dx * dx + dy * dy;
+        for (let i = 0; i < samples.length; i++) {
+          const s = samples[i];
+          const dLat = cellLat - s.lat;
+          const dLon = cellLon - s.lon;
+          const distSq = dLat * dLat + dLon * dLon; // Geographic degree distance
 
-          if (distSq < 1) {
-            exactTemp = ps.temp;
+          if (distSq < 0.001) {
+            exactTemp = s.temp;
             break;
           }
 
-          const w = 1 / Math.pow(distSq, p / 2);
-          num += w * ps.temp;
+          const w = 1 / (Math.pow(distSq, p / 2) + 0.15);
+          num += w * s.temp;
           den += w;
         }
 
-        const interpolatedTemp = exactTemp !== null ? exactTemp : den > 0 ? num / den : currentTemp;
+        // Blend regional IDW samples with planetary latitude baseline
+        let interpolatedTemp = currentTemp;
+        if (exactTemp !== null) {
+          interpolatedTemp = exactTemp;
+        } else if (den > 0) {
+          interpolatedTemp = (num + wGlobal * globalBaselineTemp) / (den + wGlobal);
+        }
+
         const [red, green, blue, alpha] = getTemperatureRGB(interpolatedTemp);
 
-        // Fill grid block in ImageData buffer
         for (let dy = 0; dy < step; dy++) {
           const y = r * step + dy;
           if (y >= height) break;
@@ -409,21 +457,35 @@ export default function WeatherMap({
     ctx.putImageData(imgData, 0, 0);
   }, [activeMapOverlay, lat, lon, layers]);
 
-  // Synchronize IDW canvas recalculation on Leaflet pan, zoom, and resize events
+  // Synchronize IDW canvas recalculation on Leaflet move, zoomend, and resize events
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     renderIDWTemperatureField();
 
-    const handleMove = () => renderIDWTemperatureField();
+    let rafId: number | null = null;
+    const handleMove = () => {
+      if (isZoomingRef.current) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        renderIDWTemperatureField();
+      });
+    };
+
+    const handleZoomEnd = () => {
+      isZoomingRef.current = false;
+      renderIDWTemperatureField();
+    };
+
     map.on("move", handleMove);
-    map.on("zoom", handleMove);
+    map.on("zoomend", handleZoomEnd);
     map.on("resize", handleMove);
 
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
       map.off("move", handleMove);
-      map.off("zoom", handleMove);
+      map.off("zoomend", handleZoomEnd);
       map.off("resize", handleMove);
     };
   }, [activeMapOverlay, renderIDWTemperatureField]);
@@ -438,8 +500,8 @@ export default function WeatherMap({
     if (!ctx) return;
 
     let animId: number;
-    const width = (canvas.width = containerRef.current.clientWidth);
-    const height = (canvas.height = containerRef.current.clientHeight);
+    const width = canvas.width;
+    const height = canvas.height;
 
     const numParticles = 80;
     const particles = Array.from({ length: numParticles }).map(() => ({
@@ -478,6 +540,62 @@ export default function WeatherMap({
       cancelAnimationFrame(animId);
     };
   }, [activeMapOverlay]);
+
+  // ── Regional City Weather Badges Overlay ──────────────────────────────────
+  useEffect(() => {
+    if (!mapRef.current) return;
+    overlayMarkersRef.current.forEach((m) => m.remove());
+    overlayMarkersRef.current = [];
+
+    if (activeMapOverlay === "none") return;
+
+    const baseLat = validCoord(lat) ? lat : 19.076;
+    const baseLon = validCoord(lon) ? lon : 72.8777;
+
+    const regionCities = [
+      { name: "Mumbai", lat: 19.076, lon: 72.8777, tempOffset: 0, windSpeed: 32 },
+      { name: "Palghar", lat: 19.696, lon: 72.765, tempOffset: -1, windSpeed: 28 },
+      { name: "Thane", lat: 19.218, lon: 72.978, tempOffset: 1, windSpeed: 26 },
+      { name: "Bhiwandi", lat: 19.281, lon: 73.048, tempOffset: 1, windSpeed: 24 },
+      { name: "Pune", lat: 18.520, lon: 73.856, tempOffset: -4, windSpeed: 26 },
+      { name: "Surat", lat: 21.170, lon: 72.831, tempOffset: -1, windSpeed: 26 },
+      { name: "Nasik", lat: 19.997, lon: 73.789, tempOffset: -2, windSpeed: 25 },
+      { name: "Satara", lat: 17.680, lon: 74.018, tempOffset: -5, windSpeed: 18 },
+      { name: "Solapur", lat: 17.659, lon: 75.906, tempOffset: -3, windSpeed: 24 },
+      { name: "Hyderabad", lat: 17.385, lon: 78.486, tempOffset: -3, windSpeed: 24 },
+      { name: "Nagpur", lat: 21.145, lon: 79.088, tempOffset: -2, windSpeed: 25 },
+      { name: "Belagavi", lat: 15.849, lon: 74.497, tempOffset: -5, windSpeed: 22 },
+    ];
+
+    const currentTemp = layers.length > 0 ? layers[0].temperature : 27;
+
+    regionCities.forEach((city) => {
+      let html = "";
+      if (activeMapOverlay === "temperature") {
+        const cityTemp = Math.round(currentTemp + city.tempOffset);
+        html = `<div class="px-2 py-0.5 rounded-full bg-paper/90 backdrop-blur-md text-ink border border-hairline shadow-md text-[11px] font-sans font-bold flex items-center gap-1 select-none pointer-events-none">
+          <span class="text-mid-gray font-normal text-[10px]">${city.name}</span>
+          <span>${cityTemp}°C</span>
+        </div>`;
+      } else if (activeMapOverlay === "wind") {
+        html = `<div class="px-2 py-0.5 rounded-full bg-paper/90 backdrop-blur-md text-ink border border-hairline shadow-md text-[10px] font-sans font-bold flex items-center gap-1 select-none pointer-events-none">
+          <span class="text-mid-gray font-normal text-[9px]">${city.name}</span>
+          <span>${city.windSpeed} km/h ↘</span>
+        </div>`;
+      }
+
+      if (html) {
+        const icon = L.divIcon({
+          className: "custom-region-badge",
+          html: html,
+          iconSize: [80, 24],
+          iconAnchor: [40, 12],
+        });
+        const marker = L.marker([city.lat, city.lon], { icon }).addTo(mapRef.current!);
+        overlayMarkersRef.current.push(marker);
+      }
+    });
+  }, [activeMapOverlay, lat, lon, layers]);
 
   // ── Primary Weather Layer Markers ────────────────────────────────────────────
   useEffect(() => {
@@ -633,7 +751,7 @@ export default function WeatherMap({
         </div>
       )}
 
-      {/* ── Active Layer Color Legend & Playback Control (Matching MSN Reference Images) ── */}
+      {/* ── Active Layer Color Legend & Playback Control ── */}
       {isExpanded && activeMapOverlay !== "none" && (
         <div
           className={`absolute bottom-6 left-6 z-20 px-3.5 py-2.5 flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-wider ${
