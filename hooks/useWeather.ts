@@ -10,6 +10,12 @@ import {
 export type StyleModeType = "frosted" | "gallery";
 export type ThemeType = "light" | "dark";
 
+/**
+ * Custom React Hook for fetching live meteorological data, handling location search,
+ * offline synchronization state, and managing active UI theme/layout modes.
+ *
+ * @returns Weather data state, loading indicators, location handlers, and UI theme controls.
+ */
 export function useWeather() {
   // Default coordinates: Mumbai, Maharashtra
   const [currentLocation, setCurrentLocation] = useState<{
