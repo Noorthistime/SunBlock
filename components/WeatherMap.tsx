@@ -106,6 +106,14 @@ export default function WeatherMap({
   const [satTimestamps, setSatTimestamps] = useState<number[]>([]);
   const [frameIndex, setFrameIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [hasPrecipitation, setHasPrecipitation] = useState(true);
+  const [debugMetrics, setDebugMetrics] = useState({
+    timestamp: 0,
+    loadedFramesCount: 0,
+    visibleTiles: 0,
+    dryMode: false,
+    bounds: "",
+  });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -116,6 +124,7 @@ export default function WeatherMap({
   const markersRef = useRef<L.Marker[]>([]);
   const overlayMarkersRef = useRef<L.Marker[]>([]);
   const isZoomingRef = useRef<boolean>(false);
+  const layersPoolRef = useRef<Map<string, L.TileLayer>>(new Map());
 
   const onMapClickRef = useRef(onMapClick);
   useEffect(() => {
@@ -191,6 +200,75 @@ export default function WeatherMap({
       }, 200);
     }
   }, [isExpanded]);
+
+  // Check if current viewport has any active precipitation
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || activeMapOverlay !== "precipitation") {
+      setHasPrecipitation(true);
+      return;
+    }
+
+    const checkPrecipitation = () => {
+      const bounds = map.getBounds();
+      // Check if any layer points with active rain or weather code indicating rain fall inside the viewport
+      const rainInViewport = layers.some((point) => {
+        const latLng = L.latLng(point.lat, point.lon);
+        const inViewport = bounds.contains(latLng);
+        const hasRain = point.rain > 0 || [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(point.weatherCode);
+        return inViewport && hasRain;
+      });
+
+      setHasPrecipitation(rainInViewport);
+    };
+
+    // Run initial check and set event listeners
+    checkPrecipitation();
+    map.on("moveend", checkPrecipitation);
+    map.on("zoomend", checkPrecipitation);
+
+    return () => {
+      map.off("moveend", checkPrecipitation);
+      map.off("zoomend", checkPrecipitation);
+    };
+  }, [activeMapOverlay, layers]);
+
+  // Gather development debugging metrics
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+
+    const map = mapRef.current;
+    if (!map) return;
+
+    const updateMetrics = () => {
+      const bounds = map.getBounds();
+      const boundsStr = `SW: ${bounds.getSouthWest().lat.toFixed(3)}, ${bounds.getSouthWest().lng.toFixed(3)} | NE: ${bounds.getNorthEast().lat.toFixed(3)}, ${bounds.getNorthEast().lng.toFixed(3)}`;
+      
+      const timestamps = activeMapOverlay === "clouds" ? satTimestamps : radarTimestamps;
+      const currentTs = timestamps[frameIndex] || 0;
+      
+      // Count visible overlay tiles currently loaded in the DOM
+      const tileElements = document.querySelectorAll(".leaflet-overlay-tile");
+      let activeTilesCount = 0;
+      tileElements.forEach((el) => {
+        const img = el as HTMLImageElement;
+        if (img.complete && img.naturalWidth > 0 && !img.src.includes("data:image")) {
+          activeTilesCount++;
+        }
+      });
+
+      setDebugMetrics({
+        timestamp: currentTs,
+        loadedFramesCount: timestamps.length,
+        visibleTiles: activeTilesCount,
+        dryMode: activeMapOverlay === "precipitation" && !hasPrecipitation,
+        bounds: boundsStr,
+      });
+    };
+
+    const interval = setInterval(updateMetrics, 1000);
+    return () => clearInterval(interval);
+  }, [activeMapOverlay, frameIndex, radarTimestamps, satTimestamps, hasPrecipitation]);
 
   const lightTiles = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
   const darkTiles = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
@@ -277,6 +355,8 @@ export default function WeatherMap({
       map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
+      layersPoolRef.current.forEach((layer) => layer.remove());
+      layersPoolRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -303,56 +383,91 @@ export default function WeatherMap({
     tileLayerRef.current.setUrl(targetBaseTiles);
   }, [theme, activeMapOverlay]);
 
-  // ── Active Overlay Weather Tile Layer Management ──────────────────────────────
+  // ── Active Overlay Weather Tile Layer Management with Sliding-Window Preloading ──
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    if (!map) return;
 
-    if (overlayTileLayerRef.current) {
-      overlayTileLayerRef.current.remove();
-      overlayTileLayerRef.current = null;
+    if (activeMapOverlay === "none" || activeMapOverlay === "temperature") {
+      // Clear all active layers in the pool
+      layersPoolRef.current.forEach((layer) => layer.remove());
+      layersPoolRef.current.clear();
+      return;
     }
-
-    if (activeMapOverlay === "none" || activeMapOverlay === "temperature") return;
 
     const timestamps = activeMapOverlay === "clouds" ? satTimestamps : radarTimestamps;
-    const ts =
-      timestamps && timestamps.length > 0
-        ? timestamps[Math.min(frameIndex, timestamps.length - 1)]
-        : Math.floor(Date.now() / 1000);
+    if (!timestamps || timestamps.length === 0) return;
 
-    let tileUrl = "";
-    let opacity = 0.75;
-    let className = "";
+    const len = timestamps.length;
+    const currentIdx = Math.min(frameIndex, len - 1);
 
-    if (activeMapOverlay === "radar") {
-      tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
-      opacity = 0.8;
-    } else if (activeMapOverlay === "precipitation") {
-      tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_0.png`;
-      opacity = 0.85;
-    } else if (activeMapOverlay === "clouds") {
-      tileUrl = `https://tilecache.rainviewer.com/v2/sat/${ts}/256/{z}/{x}/{y}/0/0_0.png`;
-      opacity = 0.65;
-    } else if (activeMapOverlay === "wind") {
-      tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
-      opacity = 0.7;
-      className = "wind-velocity-filter";
-    }
+    // Slide window: Keep previous frame, current frame, and next 2 frames preloaded
+    const windowIndices = new Set<number>([
+      currentIdx,
+      (currentIdx + 1) % len,
+      (currentIdx + 2) % len,
+      (currentIdx - 1 + len) % len
+    ]);
 
-    if (tileUrl) {
-      const overlayLayer = L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        maxNativeZoom: 7,
-        keepBuffer: 8,
-        updateWhenZooming: false,
-        updateWhenIdle: true,
-        opacity: opacity,
-        zIndex: 400,
-        errorTileUrl: TRANSPARENT_TILE,
-        className: className,
-      }).addTo(mapRef.current);
-      overlayTileLayerRef.current = overlayLayer;
-    }
+    const activeKeys = new Set<string>();
+
+    windowIndices.forEach((idx) => {
+      const ts = timestamps[idx];
+      const key = `${activeMapOverlay}_${ts}`;
+      activeKeys.add(key);
+
+      let tileUrl = "";
+      let targetOpacity = 0.75;
+      let className = "";
+
+      if (activeMapOverlay === "radar") {
+        tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
+        targetOpacity = 0.8;
+      } else if (activeMapOverlay === "precipitation") {
+        tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_0.png`;
+        targetOpacity = 0.85;
+      } else if (activeMapOverlay === "clouds") {
+        tileUrl = `https://tilecache.rainviewer.com/v2/sat/${ts}/256/{z}/{x}/{y}/0/0_0.png`;
+        targetOpacity = 0.65;
+      } else if (activeMapOverlay === "wind") {
+        tileUrl = `https://tilecache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/1/1_1.png`;
+        targetOpacity = 0.7;
+        className = "wind-velocity-filter";
+      }
+
+      if (!tileUrl) return;
+
+      const isCurrent = idx === currentIdx;
+      // Use standard opacity for active frame, and a very low non-zero opacity for preloads (triggers background tiles request)
+      const opacity = isCurrent ? targetOpacity : 0.001;
+
+      let layer = layersPoolRef.current.get(key);
+      if (!layer) {
+        layer = L.tileLayer(tileUrl, {
+          maxZoom: 19,
+          maxNativeZoom: 7,
+          keepBuffer: 2, // load only tiles intersecting viewport & immediate adjacent
+          updateWhenZooming: false,
+          updateWhenIdle: true,
+          opacity: opacity,
+          zIndex: 400,
+          errorTileUrl: TRANSPARENT_TILE,
+          className: className || `leaflet-overlay-tile overlay-tile-${activeMapOverlay}`,
+        });
+        layer.addTo(map);
+        layersPoolRef.current.set(key, layer);
+      } else {
+        layer.setOpacity(opacity);
+      }
+    });
+
+    // Clean up any frames that dropped out of the sliding window
+    layersPoolRef.current.forEach((layer, key) => {
+      if (!activeKeys.has(key)) {
+        layer.remove();
+        layersPoolRef.current.delete(key);
+      }
+    });
   }, [activeMapOverlay, frameIndex, radarTimestamps, satTimestamps]);
 
   // ── CONTINUOUS SPATIAL THERMAL FIELD RENDERER WITH LIVE WEATHER SYNCHRONIZATION ──
@@ -723,6 +838,20 @@ export default function WeatherMap({
         </div>
       )}
 
+      {/* ── Dry Conditions Indicator Badge ── */}
+      {isExpanded && activeMapOverlay === "precipitation" && !hasPrecipitation && (
+        <div
+          className={`absolute top-16 left-1/2 -translate-x-1/2 z-20 pointer-events-none px-3.5 py-1.5 text-xs font-sans font-semibold text-ink shadow-sm flex items-center gap-1.5 whitespace-nowrap ${
+            isGallery
+              ? "border-2 border-ink rounded-none bg-paper font-condensed uppercase tracking-wider text-[10px]"
+              : "border border-hairline rounded-full bg-paper/90 backdrop-blur-md"
+          }`}
+        >
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span>No precipitation detected in the current area.</span>
+        </div>
+      )}
+
       {/* ── Weather Overlay Selector Toolbar (Visible only in Expanded Mode) ── */}
       {isExpanded && (
         <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 overflow-x-auto max-w-[calc(100%-160px)] p-1">
@@ -779,6 +908,34 @@ export default function WeatherMap({
             </div>
             <span className="text-mid-gray text-[9px]">{timeFormatted}</span>
           </div>
+
+          {/* Timeline steps */}
+          {activeMapOverlay !== "temperature" && timestamps.length > 0 && (
+            <div className="flex items-center gap-1 mt-1 overflow-x-auto py-1 max-w-[240px]">
+              {timestamps.map((ts, idx) => {
+                const isActive = idx === frameIndex;
+                const isNowcast = activeMapOverlay !== "clouds" && idx >= radarTimestamps.length - 3;
+                return (
+                  <button
+                    key={ts}
+                    onClick={() => {
+                      setFrameIndex(idx);
+                      setIsPlaying(false);
+                    }}
+                    title={new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                      isActive
+                        ? "w-3 bg-ink"
+                        : isNowcast
+                        ? "w-1.5 bg-mid-gray/50 hover:bg-mid-gray"
+                        : "w-1.5 bg-mid-gray/30 hover:bg-mid-gray"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          )}
+
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[9px] text-mid-gray">
               {activeMapOverlay === "temperature" ? "-15°C" : activeMapOverlay === "wind" ? "0 km/h" : "LIGHT"}
@@ -832,6 +989,21 @@ export default function WeatherMap({
           {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
         </button>
       </div>
+
+      {/* ── Development Debugging Overlay Dashboard ── */}
+      {process.env.NODE_ENV === "development" && activeMapOverlay !== "none" && (
+        <div className="absolute top-16 left-4 z-25 p-3 rounded-xl border border-hairline bg-paper/95 backdrop-blur-md text-[9px] font-mono text-ink/80 flex flex-col gap-1 shadow-sm max-w-[280px] pointer-events-none select-none">
+          <div className="font-sans font-bold text-[10px] uppercase text-ink border-b border-hairline pb-1 mb-1">
+            GIS Debug Panel
+          </div>
+          <div>Overlay: <span className="text-ink font-bold">{activeMapOverlay.toUpperCase()}</span></div>
+          <div>Dry Mode: <span className={debugMetrics.dryMode ? "text-amber-500 font-bold" : "text-emerald-500 font-bold"}>{debugMetrics.dryMode ? "ACTIVE" : "INACTIVE"}</span></div>
+          <div>Timestamp: <span className="text-ink">{debugMetrics.timestamp || "N/A"}</span></div>
+          <div>Loaded Frames: <span className="text-ink">{debugMetrics.loadedFramesCount}</span></div>
+          <div>Visible Tiles: <span className="text-ink">{debugMetrics.visibleTiles}</span></div>
+          <div className="whitespace-normal break-all">Bounds: <br/><span className="text-ink">{debugMetrics.bounds}</span></div>
+        </div>
+      )}
     </div>
   );
 }
