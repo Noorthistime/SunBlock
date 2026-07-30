@@ -13,6 +13,7 @@
 # production
 /build
 
+# --- OS & Editor Generated Files ---
 # misc
 .DS_Store
 *.pem
