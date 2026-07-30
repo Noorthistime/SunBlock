@@ -2,6 +2,14 @@
   "name": "sunblock",
   "version": "0.1.0",
   "private": true,
+  "description": "SunBlock - Real-Time Weather Dashboard with Leaflet Radar & Precipitation Overlay",
+  "keywords": [
+    "weather",
+    "nextjs",
+    "leaflet",
+    "radar",
+    "precipitation"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
