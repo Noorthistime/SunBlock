@@ -16,6 +16,10 @@ interface WeatherCodeDetails {
   icon: LucideIcon;
 }
 
+/**
+ * Maps WMO (World Meteorological Organization) standard weather interpretation codes
+ * to human-readable weather condition descriptions and iconography.
+ */
 export function getWeatherDetails(code: number): WeatherCodeDetails {
   // Map WMO weather codes (https://open-meteo.com/en/docs)
   switch (code) {
